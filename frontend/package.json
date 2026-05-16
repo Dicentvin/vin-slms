@@ -3,12 +3,12 @@
   "private": true,
   "version": "1.0.0",
    "type" :"module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
+ "scripts": {
+  "dev": "vite",
+  "build": "vite build",
+  "lint": "eslint .",
+  "preview": "vite preview"
+},
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "^1.2.2",
@@ -47,6 +47,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
+      "rollup": "^3.29.4",
     "@types/node": "^22.10.7",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
