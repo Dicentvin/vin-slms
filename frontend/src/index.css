@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Premium Navy + Orange palette ───────────────── */
+    --background:  220 33% 97%;
+    --foreground:  220 40% 10%;
+
+    --card:        0 0% 100%;
+    --card-foreground: 220 40% 10%;
+
+    --popover:     0 0% 100%;
+    --popover-foreground: 220 40% 10%;
+
+    /* Navy primary */
+    --primary:     222 70% 20%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Orange accent */
+    --accent:      28 95% 52%;
+    --accent-foreground: 0 0% 100%;
+
+    --secondary:   220 20% 92%;
+    --secondary-foreground: 222 70% 20%;
+
+    --muted:       220 20% 94%;
+    --muted-foreground: 220 15% 45%;
+
+    --destructive: 0 84% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border:      220 20% 88%;
+    --input:       220 20% 88%;
+    --ring:        28 95% 52%;
+
+    --radius: 0.625rem;
+
+    /* Sidebar — deep navy */
+    --sidebar-background:         222 70% 14%;
+    --sidebar-foreground:         220 30% 90%;
+    --sidebar-primary:            28 95% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:             222 60% 22%;
+    --sidebar-accent-foreground:  0 0% 100%;
+    --sidebar-border:             222 50% 20%;
+    --sidebar-ring:               28 95% 52%;
+
+    /* Custom tokens */
+    --navy:        222 70% 20%;
+    --navy-dark:   222 70% 14%;
+    --navy-light:  222 50% 28%;
+    --orange:      28 95% 52%;
+    --orange-dark: 22 90% 44%;
+    --orange-light:36 100% 62%;
+  }
+
+  .dark {
+    --background:  222 50% 8%;
+    --foreground:  220 20% 92%;
+    --card:        222 45% 11%;
+    --card-foreground: 220 20% 92%;
+    --popover:     222 45% 11%;
+    --popover-foreground: 220 20% 92%;
+    --primary:     28 95% 52%;
+    --primary-foreground: 0 0% 100%;
+    --secondary:   222 40% 18%;
+    --secondary-foreground: 220 20% 85%;
+    --muted:       222 40% 16%;
+    --muted-foreground: 220 15% 55%;
+    --accent:      28 95% 52%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border:      222 35% 20%;
+    --input:       222 35% 20%;
+    --ring:        28 95% 52%;
+    --sidebar-background:         222 60% 8%;
+    --sidebar-foreground:         220 25% 85%;
+    --sidebar-primary:            28 95% 52%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent:             222 50% 14%;
+    --sidebar-accent-foreground:  0 0% 100%;
+    --sidebar-border:             222 40% 14%;
+    --sidebar-ring:               28 95% 52%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Premium scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { @apply bg-muted; }
+::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--orange)); }
+
+/* Smooth page transitions */
+.page-fade { animation: pageFade .25s ease; }
+@keyframes pageFade {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Gradient utilities */
+.bg-navy          { background: hsl(var(--navy)); }
+.bg-navy-dark     { background: hsl(var(--navy-dark)); }
+.bg-navy-light    { background: hsl(var(--navy-light)); }
+.text-navy        { color: hsl(var(--navy)); }
+.bg-orange        { background: hsl(var(--orange)); }
+.text-orange      { color: hsl(var(--orange)); }
+.border-orange    { border-color: hsl(var(--orange)); }
+.ring-orange      { --tw-ring-color: hsl(var(--orange)); }
+
+.gradient-navy {
+  background: linear-gradient(135deg, hsl(var(--navy-dark)) 0%, hsl(var(--navy)) 100%);
+}
+.gradient-orange {
+  background: linear-gradient(135deg, hsl(var(--orange-dark)) 0%, hsl(var(--orange-light)) 100%);
+}
+.gradient-hero {
+  background: linear-gradient(135deg, hsl(var(--navy-dark)) 0%, hsl(var(--navy)) 60%, hsl(222 45% 28%) 100%);
+}
+
+/* Premium card hover */
+.card-hover {
+  @apply transition-all duration-200;
+}
+.card-hover:hover {
+  box-shadow: 0 8px 32px -4px rgba(0,0,0,.12), 0 2px 8px -2px rgba(0,0,0,.08);
+  transform: translateY(-2px);
+}
+
+/* Orange accent button */
+.btn-orange {
+  background: linear-gradient(135deg, hsl(var(--orange-dark)), hsl(var(--orange)));
+  @apply text-white font-semibold shadow-md;
+  box-shadow: 0 4px 14px -2px hsl(var(--orange) / 0.45);
+}
+.btn-orange:hover {
+  background: linear-gradient(135deg, hsl(var(--orange)), hsl(var(--orange-light)));
+  box-shadow: 0 6px 18px -2px hsl(var(--orange) / 0.55);
+}
+
+/* Status badges */
+.badge-pending  { @apply bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300; }
+.badge-approved { @apply bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300; }
+.badge-rejected { @apply bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300; }
