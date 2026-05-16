@@ -1,188 +1,118 @@
 const PROGRAMS = [
   {
     id: "ss2",
-    label: "SS2",
-    sublabel: "Year Two",
-    tagline: "Build the Foundation",
+    label: "SS2", sublabel: "Year Two", tagline: "Build the Foundation",
     desc: "Master SS2 Physics, Chemistry, Biology, Mathematics and English with AI-powered notes analysis, auto-generated flashcards and personalised quizzes.",
-    subjects: ["Physics","Chemistry","Biology","Maths","English"],
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" width="40" height="40">
-        <rect x="6" y="10" width="28" height="20" rx="3" stroke="currentColor" strokeWidth="2"/>
-        <line x1="6" y1="16" x2="34" y2="16" stroke="currentColor" strokeWidth="2"/>
-        <circle cx="20" cy="24" r="3" fill="currentColor"/>
-      </svg>
-    ),
-    accent: "hsl(222,70%,35%)",
-    glow: "hsl(222,70%,20%)",
-    topBar: "linear-gradient(90deg,hsl(222,70%,24%),hsl(222,60%,32%))",
+    subjects: ["Physics", "Chemistry", "Biology", "Maths", "English"],
+    accent: "hsl(222,70%,55%)",
+    topBar: "from-[hsl(222,70%,24%)] to-[hsl(222,60%,32%)]",
+    featured: false,
   },
   {
     id: "ss3",
-    label: "SS3",
-    sublabel: "Final Year",
-    tagline: "Intensive Revision",
+    label: "SS3", sublabel: "Final Year", tagline: "Intensive Revision",
     desc: "Your most critical year. Every topic, every past question — analysed by AI. Mock exams, gap analysis and revision schedules built around your weaknesses.",
-    subjects: ["Intensive Revision","Past Questions","Mock Exams","All Subjects"],
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" width="40" height="40">
-        <path d="M20 6 L34 14 L34 26 L20 34 L6 26 L6 14 Z" stroke="currentColor" strokeWidth="2"/>
-        <path d="M20 14 L26 18 L26 24 L20 28 L14 24 L14 18 Z" fill="currentColor" opacity="0.3"/>
-      </svg>
-    ),
+    subjects: ["Intensive Revision", "Past Questions", "Mock Exams", "All Subjects"],
     accent: "hsl(28,95%,52%)",
-    glow: "hsl(28,70%,20%)",
-    topBar: "linear-gradient(90deg,hsl(28,85%,40%),hsl(28,95%,56%))",
+    topBar: "from-[hsl(28,85%,40%)] to-[hsl(28,95%,56%)]",
     featured: true,
   },
   {
     id: "waec",
-    label: "WAEC",
-    sublabel: "Exam Prep",
-    tagline: "Pass With Flying Colours",
+    label: "WAEC", sublabel: "Exam Prep", tagline: "Pass With Flying Colours",
     desc: "Thousands of official WAEC past questions, topic-by-topic analysis, and AI explanations for every tricky question. SSCE coverage across all subjects.",
-    subjects: ["Past Papers","SSCE Topics","MCQ Drills","Flashcards"],
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" width="40" height="40">
-        <circle cx="20" cy="20" r="12" stroke="currentColor" strokeWidth="2"/>
-        <path d="M15 20 L18 23 L25 16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
+    subjects: ["Past Papers", "SSCE Topics", "MCQ Drills", "Flashcards"],
     accent: "hsl(158,60%,40%)",
-    glow: "hsl(158,60%,15%)",
-    topBar: "linear-gradient(90deg,hsl(158,55%,28%),hsl(158,60%,42%))",
+    topBar: "from-[hsl(158,55%,28%)] to-[hsl(158,60%,42%)]",
+    featured: false,
   },
   {
     id: "jamb",
-    label: "JAMB",
-    sublabel: "UTME Prep",
-    tagline: "Score 300+",
+    label: "JAMB", sublabel: "UTME Prep", tagline: "Score 300+",
     desc: "Crack the JAMB UTME. Our AI generates JAMB-style questions on demand, identifies weak areas and creates personalised study plans to hit your target score.",
-    subjects: ["UTME Practice","Use of English","CBT Mode","Score Tracker"],
-    icon: (
-      <svg viewBox="0 0 40 40" fill="none" width="40" height="40">
-        <path d="M10 34 L10 14 L20 8 L30 14 L30 34" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
-        <rect x="16" y="24" width="8" height="10" stroke="currentColor" strokeWidth="2"/>
-        <rect x="13" y="18" width="6" height="6" stroke="currentColor" strokeWidth="2"/>
-        <rect x="21" y="18" width="6" height="6" stroke="currentColor" strokeWidth="2"/>
-      </svg>
-    ),
+    subjects: ["UTME Practice", "Use of English", "CBT Mode", "Score Tracker"],
     accent: "hsl(340,70%,50%)",
-    glow: "hsl(340,60%,15%)",
-    topBar: "linear-gradient(90deg,hsl(340,60%,36%),hsl(340,70%,52%))",
+    topBar: "from-[hsl(340,60%,36%)] to-[hsl(340,70%,52%)]",
+    featured: false,
   },
 ];
 
 const Programs = () => {
   return (
-    <section id="programs" style={{ background: "hsl(222,70%,10%)", padding: "100px 0 120px" }}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <section id="programs" className="bg-[hsl(222,70%,10%)] py-16 sm:py-24">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Header */}
-        <div style={{ textAlign:"center", marginBottom: 72 }}>
-          <div style={{ display:"inline-flex", alignItems:"center", gap: 8, background:"rgba(255,165,0,0.08)", border:"1px solid rgba(255,165,0,0.2)", borderRadius: 99, padding:"7px 18px", marginBottom: 20 }}>
-            <span style={{ fontSize:11, fontWeight:700, letterSpacing:"0.12em", color:"hsl(28,95%,62%)" }}>ACADEMIC PROGRAMS</span>
+        <div className="text-center mb-12 sm:mb-16">
+          <div className="inline-flex items-center gap-2 bg-[rgba(255,165,0,0.08)] border border-[rgba(255,165,0,0.2)] rounded-full px-4 py-2 mb-5">
+            <span className="text-[11px] font-bold tracking-[0.12em] text-[hsl(28,95%,62%)]">ACADEMIC PROGRAMS</span>
           </div>
-          <h2 style={{ fontSize:"clamp(32px,4vw,52px)", fontWeight:900, color:"#fff", lineHeight:1.1, letterSpacing:"-0.02em", margin:"0 0 18px" }}>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-white leading-tight tracking-tight mb-4">
             Your Level.{" "}
-            <span style={{ background:"linear-gradient(90deg,hsl(28,95%,52%),hsl(36,100%,65%))", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>
+            <span className="bg-gradient-to-r from-[hsl(28,95%,52%)] to-[hsl(36,100%,65%)] bg-clip-text text-transparent">
               Your Path.
             </span>
           </h2>
-          <p style={{ fontSize:17, color:"rgba(255,255,255,0.5)", maxWidth: 520, margin:"0 auto", lineHeight:1.7 }}>
+          <p className="text-base sm:text-lg text-white/50 max-w-md mx-auto leading-relaxed">
             Purpose-built for every stage — from SS2 foundations to WAEC and JAMB victory.
           </p>
         </div>
 
-        {/* Cards grid */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))", gap: 24 }}>
+        {/* Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {PROGRAMS.map((program) => (
-            <div
-              key={program.id}
-              style={{
-                position:"relative",
-                borderRadius: 20,
-                overflow:"hidden",
-                background: program.featured
-                  ? "linear-gradient(160deg,hsl(222,65%,16%) 0%,hsl(222,60%,12%) 100%)"
-                  : "linear-gradient(160deg,hsl(222,60%,13%) 0%,hsl(222,55%,10%) 100%)",
-                border: program.featured
-                  ? "1px solid rgba(255,165,0,0.35)"
-                  : "1px solid rgba(255,255,255,0.07)",
-                boxShadow: program.featured
-                  ? "0 0 0 1px rgba(255,165,0,0.15), 0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)"
-                  : "0 16px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)",
-                transition:"transform 0.3s, box-shadow 0.3s",
-                cursor:"pointer",
-              }}
-              onMouseEnter={e=>{
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.transform="translateY(-6px)";
-                el.style.boxShadow = program.featured
-                  ? "0 0 0 1px rgba(255,165,0,0.3), 0 32px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)"
-                  : "0 24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)";
-              }}
-              onMouseLeave={e=>{
-                const el = e.currentTarget as HTMLDivElement;
-                el.style.transform="translateY(0)";
-                el.style.boxShadow = program.featured
-                  ? "0 0 0 1px rgba(255,165,0,0.15), 0 24px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)"
-                  : "0 16px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)";
-              }}
+            <div key={program.id}
+              className={`relative rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 cursor-pointer ${
+                program.featured
+                  ? "bg-gradient-to-br from-[hsl(222,65%,16%)] to-[hsl(222,60%,12%)] border border-[rgba(255,165,0,0.35)] shadow-[0_0_0_1px_rgba(255,165,0,0.15),0_24px_60px_rgba(0,0,0,0.5)]"
+                  : "bg-gradient-to-br from-[hsl(222,60%,13%)] to-[hsl(222,55%,10%)] border border-white/[0.07] shadow-[0_16px_40px_rgba(0,0,0,0.4)]"
+              }`}
             >
-              {/* Coloured top stripe */}
-              <div style={{ height: 4, background: program.topBar }}/>
+              {/* Top stripe */}
+              <div className={`h-1 bg-gradient-to-r ${program.topBar}`} />
 
               {/* Inner glow */}
-              <div style={{ position:"absolute", top: 0, right: 0, width: 180, height: 180, borderRadius:"50%", background:`radial-gradient(circle,${program.accent} 0%,transparent 70%)`, opacity: 0.06, pointerEvents:"none" }}/>
+              <div className="absolute top-0 right-0 w-40 h-40 rounded-full opacity-[0.06] pointer-events-none"
+                style={{ background: `radial-gradient(circle,${program.accent} 0%,transparent 70%)`, transform: "translate(30%,-30%)" }} />
 
-              <div style={{ padding: "26px 26px 28px" }}>
-
-                {/* Top row: badge + featured chip */}
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 20 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap: 10 }}>
-                    <div style={{ width:48, height:48, borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center", background:`${program.accent}18`, border:`1px solid ${program.accent}30`, color:program.accent }}>
-                      {program.icon}
-                    </div>
-                    <div>
-                      <div style={{ fontSize:22, fontWeight:900, color:"#fff", letterSpacing:"-0.02em" }}>{program.label}</div>
-                      <div style={{ fontSize:11, fontWeight:600, color:"rgba(255,255,255,0.4)", letterSpacing:"0.06em" }}>{program.sublabel.toUpperCase()}</div>
-                    </div>
+              <div className="p-5 sm:p-6">
+                {/* Badge row */}
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <div className="text-xl sm:text-2xl font-black text-white tracking-tight">{program.label}</div>
+                    <div className="text-[10px] font-semibold text-white/40 tracking-widest mt-0.5">{program.sublabel.toUpperCase()}</div>
                   </div>
                   {program.featured && (
-                    <span style={{ padding:"5px 12px", borderRadius:99, background:"hsl(28,95%,52%)", color:"#fff", fontSize:10, fontWeight:800, letterSpacing:"0.08em" }}>POPULAR</span>
+                    <span className="px-2.5 py-1 rounded-full bg-[hsl(28,95%,52%)] text-white text-[10px] font-black tracking-wide shrink-0">POPULAR</span>
                   )}
                 </div>
 
                 {/* Tagline */}
-                <div style={{ fontSize:13, fontWeight:700, color:program.accent, marginBottom: 10, letterSpacing:"0.04em" }}>
+                <div className="text-[11px] font-bold tracking-[0.06em] mb-2.5" style={{ color: program.accent }}>
                   {program.tagline.toUpperCase()}
                 </div>
 
                 {/* Description */}
-                <p style={{ fontSize:14, color:"rgba(255,255,255,0.55)", lineHeight:1.75, marginBottom: 22 }}>
-                  {program.desc}
-                </p>
+                <p className="text-[13px] text-white/55 leading-relaxed mb-4">{program.desc}</p>
 
-                {/* Separator */}
-                <div style={{ height:1, background:"rgba(255,255,255,0.06)", marginBottom: 18 }}/>
+                {/* Divider */}
+                <div className="h-px bg-white/[0.06] mb-4" />
 
                 {/* Subject tags */}
-                <div style={{ display:"flex", flexWrap:"wrap", gap: 7 }}>
-                  {program.subjects.map(s=>(
-                    <span key={s} style={{
-                      padding:"5px 12px", borderRadius: 99, fontSize:11, fontWeight:600,
-                      background:"rgba(255,255,255,0.05)",
-                      border:"1px solid rgba(255,255,255,0.1)",
-                      color:"rgba(255,255,255,0.6)",
-                    }}>{s}</span>
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {program.subjects.map(s => (
+                    <span key={s} className="px-2.5 py-1 rounded-full text-[11px] font-medium bg-white/5 border border-white/10 text-white/60">
+                      {s}
+                    </span>
                   ))}
                 </div>
 
-                {/* Bottom CTA */}
-                <div style={{ marginTop: 22, display:"flex", alignItems:"center", gap: 6, fontSize:13, fontWeight:700, color:program.accent }}>
+                {/* CTA */}
+                <div className="flex items-center gap-1.5 text-[13px] font-bold" style={{ color: program.accent }}>
                   <span>Explore {program.label}</span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+                  </svg>
                 </div>
               </div>
             </div>
