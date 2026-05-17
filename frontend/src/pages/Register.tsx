@@ -2,15 +2,15 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router";
 import { useAuth } from "@/hooks/AuthProvider";
 import { lmsAuth } from "@/services/lmsApi";
-import { Eye, EyeOff, Loader2, GraduationCap } from "lucide-react";
+import { Eye, EyeOff, Loader2, GraduationCap, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
-import { useTheme } from "@/components/provider/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { useTheme } from "@/components/provider/theme";
 
 // All 5 classes — SS1 included
 const ALL_CLASSES = ["SS1", "SS2", "SS3", "WAEC", "JAMB"] as const;
@@ -89,15 +89,17 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex">
+
       {/* Floating theme toggle */}
       <button
         onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
         className="fixed top-4 right-4 z-50 w-9 h-9 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
         title="Toggle theme"
       >
-        {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+        {theme === "dark"
+          ? <Sun className="h-4 w-4 text-amber-400" />
+          : <Moon className="h-4 w-4 text-slate-600" />}
       </button>
-
 
       {/* ── Left panel — decorative ──────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden flex-col gradient-hero">
@@ -131,13 +133,12 @@ export default function Register() {
               </p>
             </div>
 
-            {/* Class grid — all 5 */}
             <div className="grid grid-cols-3 gap-2">
               {ALL_CLASSES.map(c => (
                 <div key={c} className="bg-white/10 border border-white/10 rounded-xl p-3 text-center">
                   <p className="font-extrabold text-white text-base">{c}</p>
                   <p className="text-[10px] text-white/50 mt-0.5">
-                    {c === "WAEC" ? "Exam Prep" : c === "JAMB" ? "UTME Prep" : `Year ${c.replace("SS","")}` }
+                    {c === "WAEC" ? "Exam Prep" : c === "JAMB" ? "UTME Prep" : `Year ${c.replace("SS","")}`}
                   </p>
                 </div>
               ))}
@@ -192,7 +193,6 @@ export default function Register() {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
               <form onSubmit={handleSubmit} className="space-y-4">
 
-                {/* Name */}
                 <div className="space-y-1.5">
                   <Label htmlFor="name" className="text-sm font-semibold">Full Name</Label>
                   <Input id="name" placeholder="e.g. Chukwudi Vincent"
@@ -200,7 +200,6 @@ export default function Register() {
                     className="h-11 focus-visible:ring-[#3ecf8e] focus-visible:border-[#3ecf8e]" />
                 </div>
 
-                {/* Email */}
                 <div className="space-y-1.5">
                   <Label htmlFor="email" className="text-sm font-semibold">Email Address</Label>
                   <Input id="email" type="email" placeholder="you@school.edu"
@@ -208,7 +207,6 @@ export default function Register() {
                     className="h-11 focus-visible:ring-[#3ecf8e] focus-visible:border-[#3ecf8e]" />
                 </div>
 
-                {/* Role + Class — side by side */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-sm font-semibold">Role</Label>
@@ -219,7 +217,6 @@ export default function Register() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="teacher">Teacher</SelectItem>
                         <SelectItem value="parent">Parent</SelectItem>
                       </SelectContent>
                     </Select>
@@ -250,7 +247,6 @@ export default function Register() {
                   )}
                 </div>
 
-                {/* Password */}
                 <div className="space-y-1.5">
                   <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
                   <div className="relative">
@@ -264,7 +260,6 @@ export default function Register() {
                   </div>
                 </div>
 
-                {/* Confirm */}
                 <div className="space-y-1.5">
                   <Label htmlFor="confirm" className="text-sm font-semibold">Confirm Password</Label>
                   <div className="relative">

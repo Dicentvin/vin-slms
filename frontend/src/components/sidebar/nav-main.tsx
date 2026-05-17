@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 
 export function NavMain({
   items,
+  onNavigate,
 }: {
   items: {
     title: string;
@@ -34,6 +35,7 @@ export function NavMain({
       isActive: boolean;
     }[];
   }[];
+  onNavigate?: () => void;
 }) {
   return (
     <SidebarGroup>
@@ -65,7 +67,7 @@ export function NavMain({
                           subItem.isActive && "bg-primary text-white"
                         )}
                       >
-                        <Link to={subItem.url}>
+                        <Link to={subItem.url} onClick={onNavigate}>
                           <span>{subItem.title}</span>
                         </Link>
                       </SidebarMenuSubButton>

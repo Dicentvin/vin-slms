@@ -284,9 +284,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent
         className="overflow-y-auto overflow-x-hidden flex-1"
         style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(var(--sidebar-border)) transparent" }}
-        onClick={handleNavClick}
       >
-        <NavMain items={navItems} />
+        <NavMain items={navItems} onNavigate={handleNavClick} />
       </SidebarContent>
 
       {/* ── Footer ─────────────────────────────────────────── */}
