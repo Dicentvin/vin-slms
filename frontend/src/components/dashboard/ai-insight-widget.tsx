@@ -10,6 +10,7 @@ interface Props {
 }
 
 const SS_SUBJECTS = ["Mathematics", "English", "Physics", "Chemistry", "Biology"];
+const LMS_BASE = (import.meta as any).env?.VITE_LMS_API_URL ?? "";
 
 // Calls the lms-backend /api/ai/chat endpoint with a synthetic doc context
 async function getAIInsight(role: string): Promise<string> {
@@ -37,9 +38,7 @@ async function getAIInsight(role: string): Promise<string> {
 
   const prompt = prompts[role] ?? prompts.default;
 
-  // Use the /api/ai/explain endpoint with a dummy doc-independent call
-  // We'll use a direct chat call instead
-  const res = await fetch("/api/ai/chat", {
+  const res = await fetch(`${LMS_BASE}/api/ai/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
