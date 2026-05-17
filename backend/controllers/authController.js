@@ -48,7 +48,18 @@ export const register = async (req, res) => {
     });
   } catch (err) {
     console.error("register error:", err);
-    return res.status(500).json({ success: false, message: "Registration failed" });
+    if (err.code === 11000) {
+      return res.status(400).json({ success: false, message: "Email already registered" });
+    }
+    if (err.name === "ValidationError") {
+      const message = Object.values(err.errors).map(e => e.message).join(", ");
+      return res.status(400).json({ success: false, message });
+    }
+    const isDev = process.env.NODE_ENV !== "production";
+    return res.status(500).json({
+      success: false,
+      message: isDev ? `Registration failed: ${err.message}` : "Registration failed",
+    });
   }
 };
 
