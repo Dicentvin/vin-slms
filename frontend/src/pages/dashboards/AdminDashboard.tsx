@@ -258,7 +258,7 @@ export default function AdminDashboard() {
           label="Parents" value={allParents.length}
           subLabel={`${approvedParents} approved`}
           icon={<Users className="h-5 w-5 text-white" />}
-          gradient="bg-gradient-to-br from-orange-500 to-orange-400"
+          gradient="bg-gradient-to-br from-pink-600 to-rose-400"
           iconBg="bg-white/20" textColor="text-white"
           url="/users/parents"
         />
