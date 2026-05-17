@@ -4,9 +4,10 @@ import { useAuth } from "@/hooks/AuthProvider";
 import { lmsAuth } from "@/services/lmsApi";
 import {
   GraduationCap, Eye, EyeOff, Loader2,
-  BookOpen, Brain, Zap, Shield,
+  BookOpen, Brain, Zap, Shield, Moon, Sun,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "@/components/provider/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ const FEATURES = [
 export default function Login() {
   const { user, loading: authLoading, setUser, setYear, setLmsToken } = useAuth();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
@@ -69,6 +71,15 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex">
+      {/* Floating theme toggle */}
+      <button
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className="fixed top-4 right-4 z-50 w-9 h-9 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+        title="Toggle theme"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+      </button>
+
 
       {/* ── Left panel — decorative (hidden on mobile) ─────────────────── */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden flex-col gradient-hero">

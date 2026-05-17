@@ -1,12 +1,14 @@
-import { Clock, GraduationCap, LogOut, RefreshCw } from "lucide-react";
+import { Clock, GraduationCap, LogOut, RefreshCw, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/AuthProvider";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { lmsAuth } from "@/services/lmsApi";
 import { useState } from "react";
+import { useTheme } from "@/components/provider/theme";
 
 export default function PendingApprovalWall() {
   const { user, logout, setUser } = useAuth();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
 
@@ -36,7 +38,16 @@ export default function PendingApprovalWall() {
   const isRejected = user?.approvalStatus === "rejected";
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+{/* Floating theme toggle */}
+      <button
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className="fixed top-4 right-4 z-50 w-9 h-9 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+        title="Toggle theme"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+      </button>
+      <div className="min-h-screen
       {/* Background blobs matching home page */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#3ecf8e] opacity-5 blur-[140px] rounded-full pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#3ecf8e] opacity-5 blur-[120px] rounded-full pointer-events-none" />

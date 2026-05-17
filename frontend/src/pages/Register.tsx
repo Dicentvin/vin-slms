@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/AuthProvider";
 import { lmsAuth } from "@/services/lmsApi";
 import { Eye, EyeOff, Loader2, GraduationCap } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "@/components/provider/theme";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ const CLASS_META: Record<string, { label: string; color: string }> = {
 export default function Register() {
   const { user, setUser, setYear, setLmsToken } = useAuth();
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   const [form, setForm] = useState({
     name: "", email: "", password: "", confirmPassword: "",
@@ -87,6 +89,15 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex">
+      {/* Floating theme toggle */}
+      <button
+        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        className="fixed top-4 right-4 z-50 w-9 h-9 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors"
+        title="Toggle theme"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+      </button>
+
 
       {/* ── Left panel — decorative ──────────────────────────────── */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden flex-col gradient-hero">
@@ -208,6 +219,7 @@ export default function Register() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Student</SelectItem>
+                        <SelectItem value="teacher">Teacher</SelectItem>
                         <SelectItem value="parent">Parent</SelectItem>
                       </SelectContent>
                     </Select>
