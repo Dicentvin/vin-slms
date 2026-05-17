@@ -119,8 +119,10 @@ export default function AdminDashboard() {
   const [pendingDocs,     setPendingDocs]     = useState<LmsDocument[]>([]);
   const [pendingStudents, setPendingStudents] = useState<LmsUser[]>([]);
   const [pendingTeachers, setPendingTeachers] = useState<LmsUser[]>([]);
+  const [pendingParents,  setPendingParents]  = useState<LmsUser[]>([]);
   const [allStudents,     setAllStudents]     = useState<LmsUser[]>([]);
   const [allTeachers,     setAllTeachers]     = useState<LmsUser[]>([]);
+  const [allParents,      setAllParents]      = useState<LmsUser[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [busyDoc,  setBusyDoc]  = useState<string | null>(null);
   const [busyUser, setBusyUser] = useState<string | null>(null);
@@ -128,18 +130,22 @@ export default function AdminDashboard() {
 
   const reload = useCallback(async () => {
     try {
-      const [docsRes, studentsRes, teachersRes] = await Promise.all([
+      const [docsRes, studentsRes, teachersRes, parentsRes] = await Promise.all([
         lmsDocs.listPending(),
         lmsUsers.list({ role: "student" }),
         lmsUsers.list({ role: "teacher" }),
+        lmsUsers.list({ role: "parent" }),
       ]);
       setPendingDocs(docsRes.documents ?? []);
       const stu = studentsRes.users ?? [];
       const tea = teachersRes.users ?? [];
+      const par = parentsRes.users  ?? [];
       setAllStudents(stu);
       setAllTeachers(tea);
+      setAllParents(par);
       setPendingStudents(stu.filter(s => s.approvalStatus === "pending"));
       setPendingTeachers(tea.filter(t => t.approvalStatus === "pending"));
+      setPendingParents(par.filter(p => p.approvalStatus === "pending"));
     } catch {}
     finally { setLoading(false); }
   }, []);
@@ -164,8 +170,10 @@ export default function AdminDashboard() {
         list.map(u => u._id === id ? { ...u, approvalStatus: updated.approvalStatus } : u);
       setAllStudents(patch);
       setAllTeachers(patch);
+      setAllParents(patch);
       setPendingStudents(p => p.filter(u => u._id !== id));
       setPendingTeachers(p => p.filter(u => u._id !== id));
+      setPendingParents(p => p.filter(u => u._id !== id));
       toast.success(action === "approve" ? `${updated.name} approved!` : `${updated.name} rejected.`);
     } catch (err: any) { toast.error(err.message ?? "Failed"); }
     finally { setBusyUser(null); }
@@ -176,15 +184,16 @@ export default function AdminDashboard() {
     try {
       await lmsUsers.delete(id);
       const remove = (list: LmsUser[]) => list.filter(u => u._id !== id);
-      setAllStudents(remove); setAllTeachers(remove);
-      setPendingStudents(remove); setPendingTeachers(remove);
+      setAllStudents(remove); setAllTeachers(remove); setAllParents(remove);
+      setPendingStudents(remove); setPendingTeachers(remove); setPendingParents(remove);
       toast.success("User deleted.");
     } catch (err: any) { toast.error(err.message ?? "Failed"); }
   };
 
-  const totalPending = pendingStudents.length + pendingTeachers.length + pendingDocs.length;
+  const totalPending = pendingStudents.length + pendingTeachers.length + pendingParents.length + pendingDocs.length;
   const approvedStudents = allStudents.filter(s => s.approvalStatus === "approved").length;
   const approvedTeachers = allTeachers.filter(t => t.approvalStatus === "approved").length;
+  const approvedParents  = allParents.filter(p => p.approvalStatus === "approved").length;
 
   return (
     <div className="flex-1 space-y-6 p-6 page-fade">
@@ -246,20 +255,20 @@ export default function AdminDashboard() {
           url="/users/teachers"
         />
         <StatCard
+          label="Parents" value={allParents.length}
+          subLabel={`${approvedParents} approved`}
+          icon={<Users className="h-5 w-5 text-white" />}
+          gradient="bg-gradient-to-br from-orange-500 to-orange-400"
+          iconBg="bg-white/20" textColor="text-white"
+          url="/users/parents"
+        />
+        <StatCard
           label="Pending Actions" value={totalPending}
           subLabel="Needs review"
           icon={<Clock className="h-5 w-5 text-white" />}
           gradient="gradient-orange"
           iconBg="bg-white/20" textColor="text-white"
           url="#"
-        />
-        <StatCard
-          label="Study Materials" value={pendingDocs.length}
-          subLabel="Awaiting approval"
-          icon={<BookMarked className="h-5 w-5 text-white" />}
-          gradient="bg-gradient-to-br from-purple-700 to-purple-500"
-          iconBg="bg-white/20" textColor="text-white"
-          url="/lms/study"
         />
       </div>
 
@@ -275,9 +284,9 @@ export default function AdminDashboard() {
               <h3 className="text-base font-bold text-foreground">User Approvals</h3>
               <p className="text-xs text-muted-foreground">Approve or reject registrations</p>
             </div>
-            {pendingStudents.length + pendingTeachers.length > 0 && (
+            {pendingStudents.length + pendingTeachers.length + pendingParents.length > 0 && (
               <span className="bg-orange text-white text-xs font-bold px-2 py-0.5 rounded-full ml-2">
-                {pendingStudents.length + pendingTeachers.length} pending
+                {pendingStudents.length + pendingTeachers.length + pendingParents.length} pending
               </span>
             )}
           </div>
@@ -288,7 +297,7 @@ export default function AdminDashboard() {
                   activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}>
                 {tab === "pending"
-                  ? `Pending${pendingStudents.length + pendingTeachers.length > 0 ? ` (${pendingStudents.length + pendingTeachers.length})` : ""}`
+                  ? `Pending${pendingStudents.length + pendingTeachers.length + pendingParents.length > 0 ? ` (${pendingStudents.length + pendingTeachers.length + pendingParents.length})` : ""}`
                   : "All Users"}
               </button>
             ))}
@@ -300,7 +309,7 @@ export default function AdminDashboard() {
             <Loader2 className="h-6 w-6 animate-spin text-[#3ecf8e]" />
           </div>
         ) : (
-          <div className="p-5 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="p-5 grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Teachers */}
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -352,6 +361,36 @@ export default function AdminDashboard() {
               ) : (
                 <div className="space-y-2 max-h-72 overflow-y-auto">
                   {(activeTab === "pending" ? pendingStudents : allStudents).map(u => (
+                    <UserRow key={u._id} u={u}
+                      onApprove={id => approveUser(id, "approve")}
+                      onReject={id  => approveUser(id, "reject")}
+                      onDelete={deleteUser} busy={busyUser} />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Parents */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-md bg-orange-500 flex items-center justify-center">
+                  <Users className="h-3.5 w-3.5 text-white" />
+                </div>
+                <h4 className="text-sm font-bold text-foreground">Parents</h4>
+                <span className="text-xs text-muted-foreground">
+                  {(activeTab === "pending" ? pendingParents : allParents).length} total
+                </span>
+              </div>
+              {(activeTab === "pending" ? pendingParents : allParents).length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-border rounded-xl bg-muted/20">
+                  <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    {activeTab === "pending" ? "No pending parents" : "No parents yet"}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {(activeTab === "pending" ? pendingParents : allParents).map(u => (
                     <UserRow key={u._id} u={u}
                       onApprove={id => approveUser(id, "approve")}
                       onReject={id  => approveUser(id, "reject")}
@@ -435,6 +474,7 @@ export default function AdminDashboard() {
               {[
                 { label: "Students",   icon: <Users className="h-4 w-4" />,         url: "/users/students",          bg: "gradient-navy text-white"                    },
                 { label: "Teachers",   icon: <GraduationCap className="h-4 w-4" />, url: "/users/teachers",          bg: "bg-gradient-to-br from-purple-600 to-purple-400 text-white" },
+                { label: "Parents",    icon: <Users className="h-4 w-4" />,         url: "/users/parents",           bg: "bg-gradient-to-br from-orange-500 to-orange-400 text-white" },
                 { label: "Study Hub",  icon: <BookMarked className="h-4 w-4" />,    url: "/lms/study",               bg: "bg-gradient-to-br from-[#3ecf8e] to-[#059669] text-black"  },
                 { label: "Exams",      icon: <Zap className="h-4 w-4" />,           url: "/lms/exams",               bg: "gradient-orange text-white"                  },
                 { label: "Timetable",  icon: <Calendar className="h-4 w-4" />,      url: "/timetable",               bg: "bg-gradient-to-br from-blue-600 to-blue-400 text-white"    },
@@ -459,10 +499,12 @@ export default function AdminDashboard() {
             </div>
             <div className="space-y-3">
               {[
-                { label: "Approved Students", value: approvedStudents,                   dot: "bg-emerald-500" },
-                { label: "Pending Students",  value: pendingStudents.length,             dot: "bg-amber-500"   },
-                { label: "Approved Teachers", value: approvedTeachers,                   dot: "bg-emerald-500" },
-                { label: "Pending Teachers",  value: pendingTeachers.length,             dot: "bg-amber-500"   },
+                { label: "Approved Students", value: approvedStudents,        dot: "bg-emerald-500" },
+                { label: "Pending Students",  value: pendingStudents.length,  dot: "bg-amber-500"   },
+                { label: "Approved Teachers", value: approvedTeachers,        dot: "bg-emerald-500" },
+                { label: "Pending Teachers",  value: pendingTeachers.length,  dot: "bg-amber-500"   },
+                { label: "Approved Parents",  value: approvedParents,         dot: "bg-emerald-500" },
+                { label: "Pending Parents",   value: pendingParents.length,   dot: "bg-amber-500"   },
               ].map(row => (
                 <div key={row.label} className="flex items-center gap-2 py-2 border-b border-border/40 last:border-0">
                   <div className={`w-2 h-2 rounded-full ${row.dot} shrink-0`} />
