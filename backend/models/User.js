@@ -28,7 +28,7 @@ const userSchema = new mongoose.Schema(
     },
     className: {
       type: String,
-      enum: ["SS2", "SS3", "WAEC", "JAMB", ""],
+      enum: ["SS1", "SS2", "SS3", "WAEC", "JAMB", ""],
       default: "",
     },
     // admin = auto-approved, student/teacher = pending until admin approves

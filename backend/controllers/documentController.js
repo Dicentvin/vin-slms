@@ -72,10 +72,15 @@ export const uploadDocument = async (req, res) => {
     // 3. Chunk text for RAG
     const chunks = splitTextIntoChunks(extracted.text, 1200, 100);
 
-    // 4. Teacher/admin uploads are auto-approved and public
-    //    Student uploads start as pending and private
-    const approvalStatus = isTeacherOrAdmin ? "approved" : "pending";
-    const isPublic       = isTeacherOrAdmin;
+    // 4. Only verified teachers/admins (approved) get auto-publish.
+    //    A newly registered "teacher" starts as pending — so their uploads
+    //    also start pending until an admin approves their account.
+    const isApprovedStaff =
+      (uploaderRole === "teacher" || uploaderRole === "admin") &&
+      req.user.approvalStatus === "approved";
+
+    const approvalStatus = isApprovedStaff ? "approved" : "pending";
+    const isPublic       = isApprovedStaff;
 
     const doc = await Document.create({
       userId:       req.user._id,
@@ -99,13 +104,13 @@ export const uploadDocument = async (req, res) => {
       subject:      subject || "",
       approvalStatus,
       isPublic,
-      approvedBy:   isTeacherOrAdmin ? req.user._id : null,
-      approvedAt:   isTeacherOrAdmin ? new Date() : null,
+      approvedBy:   isApprovedStaff ? req.user._id : null,
+      approvedAt:   isApprovedStaff ? new Date() : null,
     });
 
     return res.status(201).json({
       success: true,
-      message: isTeacherOrAdmin
+      message: isApprovedStaff
         ? "Material uploaded and published successfully."
         : "Note uploaded. Awaiting teacher approval.",
       document: {
