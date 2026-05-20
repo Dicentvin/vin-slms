@@ -9,6 +9,7 @@ import authRoutes     from "./routes/authRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import aiRoutes       from "./routes/aiRoutes.js";
 import userRoutes     from "./routes/userRoutes.js";
+import examRoutes     from "./routes/examRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -51,6 +52,7 @@ app.use("/api/auth",      authRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/ai",        aiRoutes);
 app.use("/api/users",     userRoutes);
+app.use("/api/exams",     examRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 

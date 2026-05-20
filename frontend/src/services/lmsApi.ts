@@ -48,10 +48,10 @@ export interface LmsUser {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const lmsAuth = {
-  register: (name: string, email: string, password: string, role?: string, className?: string, phone?: string) =>
+  register: (name: string, email: string, password: string, role?: string, className?: string) =>
     fetch(`${BASE}/api/auth/register`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, role, className, phone }),
+      body: JSON.stringify({ name, email, password, role, className }),
     }).then(handle<{ success: boolean; token: string; user: LmsUser }>),
 
   login: (email: string, password: string) =>
@@ -209,4 +209,152 @@ export const lmsAI = {
       method: "POST", headers: jsonHeaders(),
       body: JSON.stringify({ documentId, concept }),
     }).then(handle<{ success: boolean; concept: string; explanation: string }>),
+};
+
+// ─── Exam Types ───────────────────────────────────────────────────────────────
+export interface ExamQuestion {
+  _id: string;
+  text: string;
+  type: "mcq" | "theory";
+  marks: number;
+  options?: { id: string; text: string }[];
+  correctAnswer?: string;
+  explanation?: string;
+  hint?: string;
+}
+
+export interface OfficialExam {
+  _id: string;
+  title: string;
+  description?: string;
+  subject: string;
+  className: string;
+  type: "mcq" | "theory" | "mixed";
+  duration: number;
+  totalMarks: number;
+  passMark?: number;
+  status: "draft" | "active" | "closed";
+  questions: ExamQuestion[];
+  allowReview: boolean;
+  shuffleQ: boolean;
+  attemptsAllowed: number;
+  scheduledAt?: string;
+  closesAt?: string;
+  creatorName?: string;
+  createdAt: string;
+}
+
+export interface ExamSubmission {
+  _id: string;
+  examId: string;
+  studentId: string;
+  studentName: string;
+  answers: {
+    questionId: string;
+    type: "mcq" | "theory";
+    selectedOption?: string;
+    answerText?: string;
+    isCorrect?: boolean;
+    marksAwarded: number;
+    feedback?: string;
+  }[];
+  mcqScore: number;
+  theoryScore: number;
+  totalScore: number;
+  maxScore: number;
+  percentage: number;
+  status: "in_progress" | "submitted" | "marked";
+  theoryMarkingStatus: "pending" | "partial" | "complete";
+  startedAt: string;
+  submittedAt?: string;
+  timeTaken: number;
+  attemptNumber: number;
+}
+
+export interface ExamResult {
+  submission: ExamSubmission;
+  exam: { title: string; subject: string; type: string; totalMarks: number; allowReview: boolean };
+  questions?: ExamQuestion[];
+}
+
+// ─── Official Exam API ────────────────────────────────────────────────────────
+export const officialExams = {
+  // List exams (students get active only; admin/teacher get all)
+  list: (params?: { status?: string; className?: string; subject?: string; type?: string }) => {
+    const q = params ? "?" + new URLSearchParams(params as any).toString() : "";
+    return fetch(`${BASE}/api/exams${q}`, { headers: jsonHeaders() })
+      .then(handle<{ success: boolean; exams: OfficialExam[] }>);
+  },
+
+  // Get single exam (questions without answers for students)
+  get: (id: string) =>
+    fetch(`${BASE}/api/exams/${id}`, { headers: jsonHeaders() })
+      .then(handle<{ success: boolean; exam: OfficialExam }>),
+
+  // Create exam (admin/teacher)
+  create: (data: Partial<OfficialExam>) =>
+    fetch(`${BASE}/api/exams`, {
+      method: "POST", headers: jsonHeaders(),
+      body: JSON.stringify(data),
+    }).then(handle<{ success: boolean; exam: OfficialExam }>),
+
+  // Update exam (admin/teacher)
+  update: (id: string, data: Partial<OfficialExam>) =>
+    fetch(`${BASE}/api/exams/${id}`, {
+      method: "PUT", headers: jsonHeaders(),
+      body: JSON.stringify(data),
+    }).then(handle<{ success: boolean; exam: OfficialExam }>),
+
+  // Delete exam
+  delete: (id: string) =>
+    fetch(`${BASE}/api/exams/${id}`, { method: "DELETE", headers: jsonHeaders() })
+      .then(handle<{ success: boolean; message: string }>),
+
+  // Change status: draft | active | closed
+  setStatus: (id: string, status: "draft" | "active" | "closed") =>
+    fetch(`${BASE}/api/exams/${id}/status`, {
+      method: "PATCH", headers: jsonHeaders(),
+      body: JSON.stringify({ status }),
+    }).then(handle<{ success: boolean; exam: OfficialExam }>),
+
+  // ── Candidate ──────────────────────────────────────────────────────────────
+  // Start exam attempt — returns submission + sanitised exam
+  start: (id: string) =>
+    fetch(`${BASE}/api/exams/${id}/start`, {
+      method: "POST", headers: jsonHeaders(),
+    }).then(handle<{ success: boolean; submission: ExamSubmission; exam: OfficialExam; resumed: boolean }>),
+
+  // Submit answers
+  submit: (id: string, submissionId: string, answers: { questionId: string; selectedOption?: string; answerText?: string }[], timeTaken: number) =>
+    fetch(`${BASE}/api/exams/${id}/submit`, {
+      method: "POST", headers: jsonHeaders(),
+      body: JSON.stringify({ submissionId, answers, timeTaken }),
+    }).then(handle<{ success: boolean; submission: string; result: any }>),
+
+  // Get own result for one exam
+  getResult: (id: string) =>
+    fetch(`${BASE}/api/exams/${id}/result`, { headers: jsonHeaders() })
+      .then(handle<{ success: boolean; result: ExamResult }>),
+
+  // Get all my results
+  getMyResults: () =>
+    fetch(`${BASE}/api/exams/my-results`, { headers: jsonHeaders() })
+      .then(handle<{ success: boolean; submissions: ExamSubmission[] }>),
+
+  // ── Marking ────────────────────────────────────────────────────────────────
+  getSubmissions: (examId: string, status?: string) => {
+    const q = status ? `?status=${status}` : "";
+    return fetch(`${BASE}/api/exams/${examId}/submissions${q}`, { headers: jsonHeaders() })
+      .then(handle<{ success: boolean; submissions: ExamSubmission[] }>);
+  },
+
+  getSubmission: (examId: string, sid: string) =>
+    fetch(`${BASE}/api/exams/${examId}/submissions/${sid}`, { headers: jsonHeaders() })
+      .then(handle<{ success: boolean; submission: ExamSubmission; exam: OfficialExam }>),
+
+  markSubmission: (examId: string, sid: string, marks: { questionId: string; marksAwarded: number; feedback?: string }[]) =>
+    fetch(`${BASE}/api/exams/${examId}/submissions/${sid}/mark`, {
+      method: "PATCH", headers: jsonHeaders(),
+      body: JSON.stringify({ marks }),
+    }).then(handle<{ success: boolean; submission: ExamSubmission }>),
 };
