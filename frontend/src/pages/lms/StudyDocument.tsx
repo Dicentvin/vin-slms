@@ -646,7 +646,7 @@ export default function StudyDocument() {
   return (
     <div className="flex flex-col min-h-screen page-fade">
       {/* Top bar */}
-      <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-card sticky top-0 z-20 shadow-sm">
+      <div className="flex items-center gap-2 px-3 md:px-6 py-3 border-b border-border bg-card sticky top-0 z-20 shadow-sm">
         <Button variant="ghost" size="icon" className="hover:bg-primary/10 hover:text-primary"
           onClick={() => navigate("/lms/study")}>
           <ArrowLeft className="h-4 w-4"/>
@@ -676,25 +676,26 @@ export default function StudyDocument() {
           <Button size="sm" variant="outline"
             className={`h-8 text-xs ${showViewer?"bg-primary text-primary-foreground hover:bg-primary/90":""}`}
             onClick={() => setShowViewer(!showViewer)}>
-            {showViewer ? "Hide Document" : "Read Document"}
+            <span className="hidden sm:inline">{showViewer ? "Hide Document" : "Read Document"}</span>
+            <span className="sm:hidden">{showViewer ? "Hide" : "View Doc"}</span>
           </Button>
-          <Badge className="bg-orange text-white text-xs font-bold px-2.5 py-1">AI Ready</Badge>
+          <Badge className="bg-orange text-white text-xs font-bold px-2.5 py-1 hidden sm:inline-flex">AI Ready</Badge>
         </div>
       </div>
 
       {/* Main content */}
-      <div className={`flex-1 flex gap-0 overflow-hidden ${showViewer ? "flex-row" : "flex-col"}`}>
+      <div className={`flex-1 flex gap-0 overflow-hidden ${showViewer ? "flex-col lg:flex-row" : "flex-col"}`}>
         {/* Document viewer panel */}
         {showViewer && (
-          <div className="w-[52%] border-r border-border p-4 overflow-hidden" style={{ minHeight: "calc(100vh - 73px)" }}>
+          <div className="w-full lg:w-[52%] border-b lg:border-b-0 lg:border-r border-border p-4 overflow-hidden" style={{ minHeight: "40vh", height: "auto" }}>
             <DocumentViewer doc={doc}/>
           </div>
         )}
 
         {/* AI Tools panel */}
-        <div className={`${showViewer ? "w-[48%]" : "w-full"} p-5 overflow-auto`}>
+        <div className={`${showViewer ? "w-full lg:w-[48%]" : "w-full"} p-5 overflow-auto`}>
           <Tabs defaultValue="chat">
-            <TabsList className="w-full h-10 mb-5 bg-muted/60">
+            <TabsList className="w-full h-10 mb-5 bg-muted/60 overflow-x-auto flex-nowrap">
               <TabsTrigger value="chat"       className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1">
                 <MessageSquare className="h-3.5 w-3.5"/> Chat
               </TabsTrigger>
@@ -711,7 +712,7 @@ export default function StudyDocument() {
                 <Lightbulb className="h-3.5 w-3.5"/> Explain
               </TabsTrigger>
             </TabsList>
-            <div style={{ height: showViewer ? "calc(100vh - 180px)" : "auto" }}>
+            <div style={{ minHeight: showViewer ? "400px" : "auto" }}>
               <TabsContent value="chat"       className="h-full mt-0"><ChatTab docId={id} docTitle={doc.title}/></TabsContent>
               <TabsContent value="summary"    className="h-full mt-0"><SummaryTab docId={id}/></TabsContent>
               <TabsContent value="flashcards" className="mt-0"><FlashcardsTab docId={id}/></TabsContent>

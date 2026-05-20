@@ -10,13 +10,14 @@ const safeUser = (user) => ({
   email:          user.email,
   role:           user.role,
   className:      user.className,
+  phone:          user.phone ?? "",
   approvalStatus: user.approvalStatus,
 });
 
 // POST /api/auth/register
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role, className } = req.body;
+    const { name, email, password, role, className, phone } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: "All fields are required" });
@@ -36,6 +37,7 @@ export const register = async (req, res) => {
       password,
       role: assignedRole,
       className: assignedRole === "student" ? (className || "") : "",
+      phone: phone ?? "",
       // admin role is auto-approved via pre-save hook; others start as pending
     });
 

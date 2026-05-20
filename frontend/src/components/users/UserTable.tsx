@@ -64,20 +64,21 @@ const UserTable = ({
             <TableHead>Email</TableHead>
             {role === "teacher" && <TableHead>Subjects</TableHead>}
             {role === "student" && <TableHead>Class</TableHead>}
+            <TableHead>Phone</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading ? (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center">
+              <TableCell colSpan={5} className="h-24 text-center">
                 <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
               </TableCell>
             </TableRow>
           ) : users.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={4}
+                colSpan={5}
                 className="h-24 text-center text-muted-foreground"
               >
                 No {role}s found.
@@ -121,6 +122,9 @@ const UserTable = ({
                     )}
                   </TableCell>
                 )}
+                <TableCell>
+                  <span className="text-sm text-muted-foreground">{user.phone || <span className="italic">—</span>}</span>
+                </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

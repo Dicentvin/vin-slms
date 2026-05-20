@@ -14,6 +14,7 @@ export interface user {
   email: string;
   role: UserRole;
   className?: string;
+  phone?: string;
   approvalStatus?: ApprovalStatus;
   studentClass?: Class;
   teacherSubjects?: subject[];

@@ -6,7 +6,7 @@ import {
   Users, FileText, Clock, CheckCircle2, XCircle,
   BookMarked, Settings, Upload, Zap, GraduationCap,
   ArrowRight, Loader2, School, Calendar, Trash2,
-  UserCheck, Shield, BarChart3, TrendingUp,
+  UserCheck, Shield, BarChart3, TrendingUp, Eye, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -80,6 +80,7 @@ function UserRow({
           </span>
         </div>
         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+        {u.phone && <p className="text-xs text-muted-foreground">{u.phone}</p>}
         {u.className && (
           <span className="text-[10px] bg-navy/10 text-navy dark:bg-white/10 dark:text-white/70 font-semibold px-1.5 py-0.5 rounded-full mt-0.5 inline-block">
             {u.className}
@@ -447,14 +448,24 @@ export default function AdminDashboard() {
                         <span className="text-xs text-muted-foreground">· {doc.uploaderName ?? "Student"}</span>
                       </div>
                     </div>
-                    <div className="flex gap-1.5 shrink-0">
+                    <div className="flex gap-1.5 shrink-0 flex-wrap justify-end">
+                      <button onClick={() => setPreviewDoc(doc)}
+                        className="h-8 px-2 rounded-lg border border-border text-muted-foreground hover:border-blue-400 hover:text-blue-500 flex items-center gap-1 text-xs font-bold transition-colors"
+                        title="Preview">
+                        <Eye className="h-3 w-3" /> Preview
+                      </button>
                       <button disabled={busyDoc === doc._id} onClick={() => approveDoc(doc._id, "approve")}
                         className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
                         {busyDoc === doc._id ? <Loader2 className="h-3 w-3 animate-spin" /> : "✓ Approve"}
                       </button>
                       <button disabled={busyDoc === doc._id} onClick={() => approveDoc(doc._id, "reject")}
-                        className="h-8 px-3 rounded-lg border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-bold transition-colors disabled:opacity-50">
+                        className="h-8 px-2 rounded-lg border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-bold transition-colors disabled:opacity-50">
                         ✕
+                      </button>
+                      <button onClick={() => deleteDoc(doc._id)}
+                        className="h-8 px-2 rounded-lg border border-border text-muted-foreground hover:border-red-400 hover:text-red-500 flex items-center gap-1 text-xs font-bold transition-colors"
+                        title="Delete">
+                        <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
                   </div>
@@ -516,6 +527,55 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Document Preview Modal ───────────────────────────────────────── */}
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setPreviewDoc(null)}>
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg gradient-orange flex items-center justify-center shrink-0">
+                  <FileText className="h-4 w-4 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground truncate">{previewDoc.title}</p>
+                  <p className="text-xs text-muted-foreground">Uploaded by {previewDoc.uploaderName ?? "Student"}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={previewDoc.fileUrl} target="_blank" rel="noopener noreferrer">
+                  <button className="h-8 px-3 rounded-lg border border-border text-xs font-semibold hover:bg-muted flex items-center gap-1.5 text-foreground">
+                    <ExternalLink className="h-3.5 w-3.5" /> Open
+                  </button>
+                </a>
+                <button onClick={() => setPreviewDoc(null)} className="h-8 w-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted text-muted-foreground hover:text-foreground">
+                  ✕
+                </button>
+              </div>
+            </div>
+            {/* Iframe */}
+            <div className="flex-1 min-h-0 p-4">
+              <iframe
+                src={previewDoc.fileUrl}
+                className="w-full h-full rounded-xl border border-border min-h-[60vh]"
+                title={previewDoc.title}
+              />
+            </div>
+            {/* Footer actions */}
+            <div className="flex items-center justify-end gap-2 p-4 border-t border-border shrink-0">
+              <button disabled={busyDoc === previewDoc._id} onClick={() => { approveDoc(previewDoc._id, "reject"); setPreviewDoc(null); }}
+                className="h-9 px-4 rounded-lg border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-sm font-bold transition-colors">
+                ✕ Reject
+              </button>
+              <button disabled={busyDoc === previewDoc._id} onClick={() => { approveDoc(previewDoc._id, "approve"); setPreviewDoc(null); }}
+                className="h-9 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition-colors">
+                ✓ Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

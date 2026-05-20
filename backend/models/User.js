@@ -31,6 +31,11 @@ const userSchema = new mongoose.Schema(
       enum: ["SS1", "SS2", "SS3", "WAEC", "JAMB", ""],
       default: "",
     },
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     // admin = auto-approved, student/teacher = pending until admin approves
     approvalStatus: {
       type: String,

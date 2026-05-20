@@ -20,6 +20,7 @@ import FeeCollection      from "@/pages/finance/FeeCollection";
 import Salary             from "@/pages/finance/Salary";
 import Expenses           from "@/pages/finance/Expenses";
 import ClassPage          from "@/pages/classes/ClassPage";
+import CandidateDashboard from "@/pages/dashboards/CandidateDashboard";
 
 // ─── Global Error Boundary ────────────────────────────────────────────────────
 function RootErrorBoundary() {
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
         errorElement: <RootErrorBoundary />,
         children: [
           { path: "dashboard",               element: <Dashboard /> },
+          { path: "candidate",               element: <CandidateDashboard /> },
           { path: "activities-log",          element: <Dashboard /> },
           { path: "settings/academic-years", element: <AcademicYear /> },
 

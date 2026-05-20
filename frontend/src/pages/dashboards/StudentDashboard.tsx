@@ -117,13 +117,13 @@ export default function StudentDashboard() {
             label: "My Exams",      value: "—",
             icon:  <FileText className="h-5 w-5 text-white" />,
             bg:    "bg-gradient-to-br from-purple-700 to-purple-500",
-            iconBg:"bg-white/20",  sub: "Upcoming exams",   url: "/lms/exams",
+            iconBg:"bg-white/20",  sub: "Upcoming exams",   url: "/candidate",
           },
           {
             label: "Exam Results",  value: "—",
             icon:  <Trophy className="h-5 w-5 text-white" />,
             bg:    "gradient-orange",
-            iconBg:"bg-white/20",  sub: "Latest scores",    url: "/lms/results",
+            iconBg:"bg-white/20",  sub: "Latest scores",    url: "/candidate",
           },
         ].map(s => (
           <div key={s.label} onClick={() => navigate(s.url)}
@@ -159,7 +159,7 @@ export default function StudentDashboard() {
                 { icon: <ChatIcon />,                       label: "AI Tutor",   url: "/lms/study",             bg: "gradient-navy text-white"                                   },
                 { icon: <Zap className="h-5 w-5" />,       label: "Quiz",       url: "/lms/quiz",              bg: "gradient-orange text-white"                                 },
                 { icon: <BookOpen className="h-5 w-5" />,  label: "Flashcards", url: "/lms/flashcards",        bg: "bg-gradient-to-br from-purple-600 to-purple-400 text-white" },
-                { icon: <FileText className="h-5 w-5" />,  label: "Exams",      url: "/lms/exams",             bg: "bg-gradient-to-br from-blue-600 to-blue-400 text-white"     },
+                { icon: <FileText className="h-5 w-5" />,  label: "Exams",      url: "/candidate",             bg: "bg-gradient-to-br from-blue-600 to-blue-400 text-white"     },
                 { icon: <Trophy className="h-5 w-5" />,    label: "Results",    url: "/lms/results",           bg: "bg-gradient-to-br from-teal-600 to-teal-400 text-white"     },
               ].map(a => (
                 <button key={a.label} onClick={() => navigate(a.url)}

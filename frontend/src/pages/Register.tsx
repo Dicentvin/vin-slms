@@ -30,7 +30,7 @@ export default function Register() {
 
   const [form, setForm] = useState({
     name: "", email: "", password: "", confirmPassword: "",
-    role: "student", className: "",
+    role: "student", className: "", phone: "",
   });
   const [showPass,    setShowPass]    = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -54,7 +54,7 @@ export default function Register() {
     setLoading(true);
     try {
       const { token, user: backendUser } = await lmsAuth.register(
-        form.name.trim(), form.email.trim(), form.password, form.role, form.className
+        form.name.trim(), form.email.trim(), form.password, form.role, form.className, form.phone
       );
 
       localStorage.setItem("lms_token", token);
