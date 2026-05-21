@@ -15,8 +15,8 @@ function validId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
-async function getDoc(docId, userId) {
-  return Document.findOne({ _id: docId, userId }).lean();
+async function getDoc(docId) {
+  return Document.findOne({ _id: docId }).lean();
 }
 
 function getTextFromDoc(doc) {
@@ -31,7 +31,7 @@ export const createFlashcards = async (req, res) => {
     if (!validId(documentId))
       return res.status(400).json({ success: false, message: "Invalid document ID" });
 
-    const doc = await getDoc(documentId, req.user._id);
+    const doc = await getDoc(documentId);
     if (!doc)
       return res.status(404).json({ success: false, message: "Document not found" });
 
@@ -107,7 +107,7 @@ export const createQuiz = async (req, res) => {
     if (!validId(documentId))
       return res.status(400).json({ success: false, message: "Invalid document ID" });
 
-    const doc = await getDoc(documentId, req.user._id);
+    const doc = await getDoc(documentId);
     if (!doc)
       return res.status(404).json({ success: false, message: "Document not found" });
 
@@ -159,7 +159,7 @@ export const createSummary = async (req, res) => {
     if (!validId(documentId))
       return res.status(400).json({ success: false, message: "Invalid document ID" });
 
-    const doc = await getDoc(documentId, req.user._id);
+    const doc = await getDoc(documentId);
     if (!doc)
       return res.status(404).json({ success: false, message: "Document not found" });
 
@@ -192,7 +192,7 @@ export const chat = async (req, res) => {
     if (!validId(documentId))
       return res.status(400).json({ success: false, message: "Invalid document ID" });
 
-    const doc = await getDoc(documentId, req.user._id);
+    const doc = await getDoc(documentId);
     if (!doc)
       return res.status(404).json({ success: false, message: "Document not found" });
 
@@ -268,7 +268,7 @@ export const explain = async (req, res) => {
     if (!validId(documentId))
       return res.status(400).json({ success: false, message: "Invalid document ID" });
 
-    const doc = await getDoc(documentId, req.user._id);
+    const doc = await getDoc(documentId);
     if (!doc)
       return res.status(404).json({ success: false, message: "Document not found" });
 
