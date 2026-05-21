@@ -126,7 +126,8 @@ export default function AdminDashboard() {
   const [allParents,      setAllParents]      = useState<LmsUser[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [busyDoc,  setBusyDoc]  = useState<string | null>(null);
-  const [busyUser, setBusyUser] = useState<string | null>(null);
+  const [busyUser,   setBusyUser]   = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<LmsDocument | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
 
   const reload = useCallback(async () => {
