@@ -11,6 +11,8 @@ const safeUser = (user) => ({
   role:           user.role,
   className:      user.className,
   phone:          user.phone ?? "",
+  dateOfBirth:    user.dateOfBirth ?? "",
+  image:          user.image ?? "",
   approvalStatus: user.approvalStatus,
 });
 

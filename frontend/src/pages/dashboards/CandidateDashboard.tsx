@@ -9,7 +9,7 @@ import {
   ClipboardList, CheckSquare, FileText, Clock, Trophy,
   AlertTriangle, BookOpen, Zap, Lock, LogOut, ArrowLeft,
   Timer, CheckCircle2, XCircle, Send, BarChart3,
-  RefreshCw, Loader2, Star,
+  RefreshCw, Loader2, Star, Calendar, School, Camera, User2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -417,6 +417,20 @@ export default function CandidateDashboard() {
   const [loading,   setLoading]   = useState(true);
   const [filter,    setFilter]    = useState<"all" | "active" | "closed">("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "mcq" | "theory" | "mixed">("all");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<"exams" | "profile">("exams");
+  const [selectedClass, setSelectedClass] = useState<string>("all");
+  const [selectedTerm, setSelectedTerm] = useState<string>("all");
+  const [profileImg, setProfileImg] = useState<string>("");
+  const [profileDob, setProfileDob] = useState<string>("");
+
+  // Initialise profile fields from user context
+  useEffect(() => {
+    if (user) {
+      if ((user as any).image)       setProfileImg((user as any).image);
+      if ((user as any).dateOfBirth) setProfileDob((user as any).dateOfBirth);
+    }
+  }, [user]);
 
   // Exam session state
   const [activeExam,   setActiveExam]   = useState<OfficialExam | null>(null);
@@ -502,10 +516,15 @@ export default function CandidateDashboard() {
   }
 
   // ── Filter ──
-  const filtered = exams.filter(e =>
-    (filter === "all" || e.status === filter) &&
-    (typeFilter === "all" || e.type === typeFilter)
-  );
+  const CLASSES = ["SS1","SS2","SS3","WAEC","JAMB"];
+  const TERMS   = ["First Term","Second Term","Third Term"];
+
+  const filtered = exams.filter(e => {
+    const classMatch = selectedClass === "all" || e.className === selectedClass || e.className === "All";
+    const statusMatch = filter === "all" || e.status === filter;
+    const typeMatch   = typeFilter === "all" || e.type === typeFilter;
+    return classMatch && statusMatch && typeMatch;
+  });
 
   const activeCount    = exams.filter(e => e.status === "active").length;
   const completedCount = myResults.filter(s => s.status !== "in_progress").length;
@@ -513,142 +532,391 @@ export default function CandidateDashboard() {
     ? Math.round(myResults.filter(s => s.percentage).reduce((a, s) => a + s.percentage, 0) / myResults.length)
     : 0;
 
+  const initials = (user?.name ?? "C").split(" ").map(n => n[0]).join("").toUpperCase().slice(0,2);
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Theme toggle */}
-      <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-        className="fixed top-4 right-4 z-50 w-9 h-9 rounded-full bg-background border border-border shadow-md flex items-center justify-center hover:bg-muted transition-colors">
-        {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
-      </button>
+    <div className="min-h-screen bg-background flex">
 
-      {/* Nav */}
-      <div className="sticky top-0 z-30 bg-card border-b border-border shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => navigate("/dashboard")}
-              className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors">
-              <ArrowLeft className="h-4 w-4" />
+      {/* ── Sidebar ──────────────────────────────────────────────── */}
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      <aside className={`
+        fixed top-0 left-0 h-full z-50 w-64 bg-card border-r border-border flex flex-col shadow-xl
+        transition-transform duration-300
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:relative lg:translate-x-0 lg:shadow-none lg:z-auto
+      `}>
+        {/* Sidebar header */}
+        <div className="flex items-center gap-2 px-4 py-4 border-b border-border shrink-0">
+          <div className="w-8 h-8 rounded-lg gradient-orange flex items-center justify-center">
+            <ClipboardList className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-extrabold text-sm text-foreground leading-none">Exam Portal</p>
+            <p className="text-[10px] text-muted-foreground">Chukwudi Academy</p>
+          </div>
+          <button className="lg:hidden w-7 h-7 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground"
+            onClick={() => setSidebarOpen(false)}>
+            <XCircle className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Sidebar nav */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {/* Exams section */}
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground px-2 pt-2 pb-1">Exams</p>
+          <button
+            onClick={() => { setActiveSection("exams"); setSelectedClass("all"); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left ${
+              activeSection === "exams" && selectedClass === "all"
+                ? "bg-[#3ecf8e]/10 text-[#3ecf8e]"
+                : "text-foreground hover:bg-muted"
+            }`}>
+            <FileText className="h-4 w-4 shrink-0" /> All Exams
+          </button>
+
+          {/* Class filter */}
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground px-2 pt-3 pb-1">By Class</p>
+          {CLASSES.map(cls => (
+            <button key={cls}
+              onClick={() => { setActiveSection("exams"); setSelectedClass(cls); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-colors text-left ${
+                activeSection === "exams" && selectedClass === cls
+                  ? "bg-[#3ecf8e]/10 text-[#3ecf8e]"
+                  : "text-foreground hover:bg-muted"
+              }`}>
+              <BookOpen className="h-3.5 w-3.5 shrink-0 opacity-60" />
+              {cls}
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {exams.filter(e => e.className === cls || e.className === "All").length}
+              </span>
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg gradient-orange flex items-center justify-center">
-                <ClipboardList className="h-4 w-4 text-white" />
-              </div>
+          ))}
+
+          {/* Term filter */}
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground px-2 pt-3 pb-1">By Term</p>
+          {TERMS.map(term => (
+            <button key={term}
+              onClick={() => { setSelectedTerm(term); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-colors text-left ${
+                selectedTerm === term
+                  ? "bg-[#3ecf8e]/10 text-[#3ecf8e]"
+                  : "text-foreground hover:bg-muted"
+              }`}>
+              <Trophy className="h-3.5 w-3.5 shrink-0 opacity-60" />
+              {term}
+            </button>
+          ))}
+
+          {/* Profile */}
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground px-2 pt-3 pb-1">Account</p>
+          <button
+            onClick={() => { setActiveSection("profile"); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors text-left ${
+              activeSection === "profile"
+                ? "bg-[#3ecf8e]/10 text-[#3ecf8e]"
+                : "text-foreground hover:bg-muted"
+            }`}>
+            <User2 className="h-4 w-4 shrink-0" /> My Profile
+          </button>
+        </nav>
+
+        {/* Sidebar footer */}
+        <div className="border-t border-border p-3 space-y-2 shrink-0">
+          <button onClick={() => navigate("/dashboard")}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Study Dashboard
+          </button>
+          <button onClick={() => { logout(); navigate("/login"); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+            <LogOut className="h-4 w-4" /> Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Main content ────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0">
+
+        {/* Top bar */}
+        <div className="sticky top-0 z-30 bg-card border-b border-border shadow-sm shrink-0">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button className="lg:hidden w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors"
+                onClick={() => setSidebarOpen(true)}>
+                <ClipboardList className="h-4 w-4" />
+              </button>
               <div>
-                <p className="font-extrabold text-sm text-foreground leading-none">Exam Portal</p>
-                <p className="text-[10px] text-muted-foreground">Chukwudi Academy</p>
+                <p className="font-extrabold text-sm text-foreground leading-none">
+                  {activeSection === "profile" ? "My Profile" : selectedClass === "all" ? "All Exams" : `${selectedClass} Exams`}
+                </p>
+                <p className="text-[10px] text-muted-foreground">{selectedTerm !== "all" ? selectedTerm : "All Terms"}</p>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <button onClick={load} className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground">
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              </button>
+              <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                className="w-8 h-8 rounded-full bg-background border border-border flex items-center justify-center hover:bg-muted transition-colors">
+                {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={load} className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground">
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            </button>
-            <div className="hidden sm:flex items-center gap-2 bg-muted/60 rounded-xl px-3 py-1.5">
-              <div className="w-6 h-6 rounded-full gradient-navy flex items-center justify-center text-white font-extrabold text-[10px]">
-                {user?.name?.charAt(0).toUpperCase()}
+        </div>
+
+        {/* ── Profile Section ─────────────────────────── */}
+        {activeSection === "profile" && (
+          <div className="flex-1 overflow-auto p-6">
+            <div className="max-w-2xl mx-auto space-y-6">
+
+              {/* Profile card */}
+              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+                <div className="h-24 gradient-orange relative">
+                  <div className="absolute inset-0 opacity-10"
+                    style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "20px 20px" }} />
+                </div>
+                <div className="px-6 pb-6">
+                  {/* Avatar */}
+                  <div className="relative -mt-12 mb-4">
+                    <div className="w-24 h-24 rounded-2xl border-4 border-card overflow-hidden bg-muted shadow-lg">
+                      {profileImg ? (
+                        <img src={profileImg} alt="Profile" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full gradient-navy flex items-center justify-center">
+                          <span className="text-white font-extrabold text-2xl">{initials}</span>
+                        </div>
+                      )}
+                    </div>
+                    <label className="absolute bottom-0 right-0 w-8 h-8 bg-[#3ecf8e] rounded-full flex items-center justify-center cursor-pointer shadow-md hover:bg-[#34b27b] transition-colors" title="Upload photo">
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) { const r = new FileReader(); r.onload = ev => setProfileImg(ev.target?.result as string); r.readAsDataURL(f); }
+                        }} />
+                      <Camera className="h-3.5 w-3.5 text-black" />
+                    </label>
+                  </div>
+
+                  <h2 className="text-xl font-extrabold text-foreground">{user?.name}</h2>
+                  {user?.className && (
+                    <span className="inline-block text-xs font-bold bg-[#3ecf8e]/10 text-[#3ecf8e] px-2 py-0.5 rounded-full mt-1">{user.className}</span>
+                  )}
+                </div>
               </div>
-              <span className="text-xs font-semibold text-foreground">{user?.name?.split(" ")[0]}</span>
-              {user?.className && (
-                <span className="text-[10px] font-bold bg-[#3ecf8e]/10 text-[#3ecf8e] px-1.5 py-0.5 rounded-full">{user.className}</span>
-              )}
+
+              {/* Info grid */}
+              <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+                <h3 className="font-bold text-foreground">Personal Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Full Name</p>
+                    <p className="text-sm font-semibold text-foreground">{user?.name ?? "—"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Email Address</p>
+                    <p className="text-sm font-semibold text-foreground">{user?.email ?? "—"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Phone Number</p>
+                    <p className="text-sm font-semibold text-foreground">{user?.phone ?? "Not provided"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date of Birth</p>
+                    {profileDob ? (
+                      <p className="text-sm font-semibold text-foreground">{new Date(profileDob).toLocaleDateString("en-GB", { day:"numeric", month:"long", year:"numeric" })}</p>
+                    ) : (
+                      <input type="date" value={profileDob} onChange={e => setProfileDob(e.target.value)}
+                        className="text-sm font-semibold text-foreground bg-transparent border-b border-dashed border-border focus:outline-none focus:border-[#3ecf8e] w-full" />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Class</p>
+                    <p className="text-sm font-semibold text-foreground">{user?.className ?? "—"}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Role</p>
+                    <p className="text-sm font-semibold text-foreground capitalize">{user?.role ?? "Student"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Exam results summary */}
+              <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+                <h3 className="font-bold text-foreground mb-4">My Exam Results</h3>
+                {myResults.length === 0 ? (
+                  <div className="text-center py-8 border border-dashed border-border rounded-xl bg-muted/20">
+                    <Trophy className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No completed exams yet</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-3">Exam</th>
+                          <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-3">Score</th>
+                          <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-3">%</th>
+                          <th className="text-left text-xs font-bold text-muted-foreground pb-2">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {myResults.map(r => (
+                          <tr key={r._id}>
+                            <td className="py-2.5 pr-3 font-semibold text-foreground text-xs max-w-[160px] truncate">{r.examTitle ?? r.examId}</td>
+                            <td className="py-2.5 pr-3 text-muted-foreground text-xs">{r.totalScore}/{r.maxScore}</td>
+                            <td className="py-2.5 pr-3 text-xs font-bold text-foreground">{r.percentage ?? "—"}%</td>
+                            <td className="py-2.5">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                r.status === "submitted" || r.status === "graded"
+                                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                  : "bg-amber-100 text-amber-700"
+                              }`}>{r.status}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
-            <button onClick={() => { logout(); navigate("/login"); }}
-              className="w-8 h-8 rounded-lg border border-border flex items-center justify-center hover:bg-red-50 hover:border-red-300 hover:text-red-500 transition-colors text-muted-foreground">
-              <LogOut className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
-        {/* Hero */}
-        <div className="relative overflow-hidden rounded-2xl gradient-orange p-6 text-white">
-          <div className="absolute inset-0 opacity-10"
-            style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2">
-              <ClipboardList className="h-5 w-5" />
-              <span className="text-xs font-bold uppercase tracking-widest opacity-80">Official Exam Portal</span>
-            </div>
-            <h1 className="text-2xl font-extrabold">Welcome, {user?.name?.split(" ")[0]} 👋</h1>
-            <p className="text-white/70 text-sm mt-1">
-              {loading ? "Loading your exams…"
-                : activeCount > 0 ? `${activeCount} exam${activeCount > 1 ? "s" : ""} available. Good luck!`
-                : "No active exams right now. Check back soon."}
-            </p>
-          </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: "Available",  value: loading ? "…" : activeCount,    icon: <Zap className="h-5 w-5" />,          bg: "bg-gradient-to-br from-[#3ecf8e] to-[#059669]", ic: "bg-black/15", t: "text-black" },
-            { label: "Completed",  value: loading ? "…" : completedCount,  icon: <CheckCircle2 className="h-5 w-5" />, bg: "gradient-navy",                                 ic: "bg-white/20", t: "text-white" },
-            { label: "Avg Score",  value: loading ? "…" : (avgPct ? `${avgPct}%` : "—"), icon: <BarChart3 className="h-5 w-5" />, bg: "bg-gradient-to-br from-purple-700 to-purple-500", ic: "bg-white/20", t: "text-white" },
-            { label: "Total Exams", value: loading ? "…" : exams.length,  icon: <ClipboardList className="h-5 w-5" />, bg: "gradient-orange", ic: "bg-white/20", t: "text-white" },
-          ].map(s => (
-            <div key={s.label} className={`rounded-2xl p-5 relative overflow-hidden ${s.bg}`}>
-              <div className="absolute inset-0 opacity-10"
-                style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${s.ic} ${s.t}`}>{s.icon}</div>
-              <p className={`text-2xl font-extrabold ${s.t}`}>{s.value}</p>
-              <p className={`text-xs font-semibold mt-0.5 ${s.t} opacity-80`}>{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            { k: "all", l: "All" }, { k: "active", l: "Available" }, { k: "closed", l: "Closed" },
-          ].map(f => (
-            <button key={f.k} onClick={() => setFilter(f.k as any)}
-              className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
-                filter === f.k ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-              }`}>{f.l}</button>
-          ))}
-          <div className="w-px bg-border mx-1 self-stretch" />
-          {[
-            { k: "all", l: "All Types" }, { k: "mcq", l: "MCQ" }, { k: "theory", l: "Theory" }, { k: "mixed", l: "Mixed" },
-          ].map(f => (
-            <button key={f.k} onClick={() => setTypeFilter(f.k as any)}
-              className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
-                typeFilter === f.k ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-              }`}>{f.l}</button>
-          ))}
-        </div>
-
-        {/* Exam grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1,2,3].map(i => <div key={i} className="h-52 bg-muted rounded-2xl animate-pulse" />)}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 border border-dashed border-border rounded-2xl bg-muted/20">
-            <ClipboardList className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="font-bold text-foreground">No exams found</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {exams.length === 0 ? "Your teacher hasn't published any exams yet." : "Try a different filter."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map(exam => (
-              <ExamCard key={exam._id} exam={exam} onStart={handleStart} myResults={myResults} />
-            ))}
           </div>
         )}
 
-        <div className="flex items-center justify-between pt-2 border-t border-border">
-          <button onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Back to Study Dashboard
-          </button>
-          <div className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-[#3ecf8e] animate-pulse" />
-            <span className="text-xs text-muted-foreground">Portal Active</span>
+        {/* ── Exams Section ──────────────────────────── */}
+        {activeSection === "exams" && (
+          <div className="flex-1 overflow-auto p-4 md:p-6 space-y-5">
+
+            {/* Stats row */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Available",   value: loading ? "…" : activeCount,    bg: "bg-gradient-to-br from-[#3ecf8e] to-[#059669]", t: "text-black" },
+                { label: "Completed",   value: loading ? "…" : completedCount, bg: "gradient-navy",                                   t: "text-white" },
+                { label: "Avg Score",   value: loading ? "…" : (avgPct ? `${avgPct}%` : "—"), bg: "bg-gradient-to-br from-purple-700 to-purple-500", t: "text-white" },
+                { label: "Total",       value: loading ? "…" : exams.length,   bg: "gradient-orange",                                 t: "text-white" },
+              ].map(s => (
+                <div key={s.label} className={`rounded-2xl p-4 relative overflow-hidden ${s.bg}`}>
+                  <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "16px 16px" }} />
+                  <p className={`text-xl font-extrabold ${s.t} relative z-10`}>{s.value}</p>
+                  <p className={`text-xs font-semibold mt-0.5 ${s.t} opacity-80 relative z-10`}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2">
+              {(["all","active","closed"] as const).map(f => (
+                <button key={f} onClick={() => setFilter(f)}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
+                    filter === f ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground"
+                  }`}>{f === "all" ? "All Status" : f.charAt(0).toUpperCase() + f.slice(1)}</button>
+              ))}
+              <div className="w-px bg-border mx-1 self-stretch" />
+              {(["all","mcq","theory","mixed"] as const).map(f => (
+                <button key={f} onClick={() => setTypeFilter(f)}
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${
+                    typeFilter === f ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground"
+                  }`}>{f === "all" ? "All Types" : f.toUpperCase()}</button>
+              ))}
+            </div>
+
+            {/* Exams Table */}
+            {loading ? (
+              <div className="space-y-2">
+                {[1,2,3,4].map(i => <div key={i} className="h-14 bg-muted rounded-xl animate-pulse" />)}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16 border border-dashed border-border rounded-2xl bg-muted/20">
+                <ClipboardList className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="font-bold text-foreground">No exams found</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {exams.length === 0 ? "No exams published yet. Check back soon." : "Try a different filter."}
+                </p>
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="text-left text-xs font-bold text-muted-foreground px-4 py-3 pr-3">Exam Title</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground py-3 pr-3">Subject</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground py-3 pr-3">Class</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground py-3 pr-3">Type</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground py-3 pr-3">Duration</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground py-3 pr-3">Marks</th>
+                        <th className="text-left text-xs font-bold text-muted-foreground py-3 pr-3">Status</th>
+                        <th className="text-right text-xs font-bold text-muted-foreground py-3 px-4">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filtered.map(exam => {
+                        const myResult = myResults.find(s => s.examId === exam._id);
+                        const isCompleted = !!myResult && myResult.status !== "in_progress";
+                        const isActive = exam.status === "active";
+                        return (
+                          <tr key={exam._id} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 pr-3">
+                              <p className="font-semibold text-foreground text-sm leading-tight max-w-[180px] truncate">{exam.title}</p>
+                              {isCompleted && myResult && (
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">
+                                  Score: {myResult.totalScore}/{myResult.maxScore} ({myResult.percentage}%)
+                                </p>
+                              )}
+                            </td>
+                            <td className="py-3 pr-3 text-muted-foreground text-xs">{exam.subject}</td>
+                            <td className="py-3 pr-3">
+                              <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{exam.className ?? "All"}</span>
+                            </td>
+                            <td className="py-3 pr-3">
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase text-white ${
+                                exam.type === "mcq" ? "bg-blue-500" : exam.type === "theory" ? "bg-purple-500" : "bg-orange-500"
+                              }`}>{exam.type}</span>
+                            </td>
+                            <td className="py-3 pr-3 text-muted-foreground text-xs">{exam.duration}m</td>
+                            <td className="py-3 pr-3 text-muted-foreground text-xs font-semibold">{exam.totalMarks}</td>
+                            <td className="py-3 pr-3">
+                              {isCompleted ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 flex items-center gap-1 w-fit">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> Done
+                                </span>
+                              ) : isActive ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 flex items-center gap-1 w-fit">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 w-fit block">
+                                  {exam.status === "draft" ? "Draft" : "Closed"}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              {isActive && !isCompleted ? (
+                                <Button size="sm" onClick={() => handleStart(exam)} disabled={starting}
+                                  className="h-8 px-4 bg-[#3ecf8e] hover:bg-[#34b27b] text-black font-bold text-xs gap-1">
+                                  {starting ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Zap className="h-3 w-3" /> Start</>}
+                                </Button>
+                              ) : isCompleted ? (
+                                <span className="text-xs text-muted-foreground font-semibold">Submitted</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
+                                  <Lock className="h-3 w-3" /> Locked
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

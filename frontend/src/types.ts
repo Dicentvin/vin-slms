@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "teacher" | "student" | "parent";
+export type UserRole = "admin" | "teacher" | "student" | "parent" | "candidate";
 export type ApprovalStatus = "pending" | "approved" | "rejected";
 
 export interface pagination {
@@ -15,6 +15,7 @@ export interface user {
   role: UserRole;
   className?: string;
   phone?: string;
+  dateOfBirth?: string;
   approvalStatus?: ApprovalStatus;
   studentClass?: Class;
   teacherSubjects?: subject[];

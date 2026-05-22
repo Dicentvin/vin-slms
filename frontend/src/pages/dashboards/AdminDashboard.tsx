@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/AuthProvider";
-import { lmsDocs, lmsUsers, type LmsDocument, type LmsUser } from "@/services/lmsApi";
+import { lmsDocs, lmsUsers, officialExams, type LmsDocument, type LmsUser, type OfficialExam } from "@/services/lmsApi";
 import {
   Users, FileText, Clock, CheckCircle2, XCircle,
   BookMarked, Settings, Upload, Zap, GraduationCap,
   ArrowRight, Loader2, School, Calendar, Trash2,
   UserCheck, Shield, BarChart3, TrendingUp, Eye, ExternalLink,
+  PlayCircle, PauseCircle, ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -118,38 +119,48 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
 
   const [pendingDocs,     setPendingDocs]     = useState<LmsDocument[]>([]);
+  const [approvedDocs,    setApprovedDocs]    = useState<LmsDocument[]>([]);
   const [pendingStudents, setPendingStudents] = useState<LmsUser[]>([]);
   const [pendingTeachers, setPendingTeachers] = useState<LmsUser[]>([]);
   const [pendingParents,  setPendingParents]  = useState<LmsUser[]>([]);
   const [allStudents,     setAllStudents]     = useState<LmsUser[]>([]);
   const [allTeachers,     setAllTeachers]     = useState<LmsUser[]>([]);
   const [allParents,      setAllParents]      = useState<LmsUser[]>([]);
+  const [allExams,        setAllExams]        = useState<OfficialExam[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [busyDoc,  setBusyDoc]  = useState<string | null>(null);
   const [busyUser,   setBusyUser]   = useState<string | null>(null);
+  const [busyExam,   setBusyExam]   = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<LmsDocument | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
+  const [docTab, setDocTab] = useState<"pending" | "approved">("pending");
 
   const reload = useCallback(async () => {
+    setLoading(true);
     try {
-      const [docsRes, studentsRes, teachersRes, parentsRes] = await Promise.all([
-        lmsDocs.listPending(),
-        lmsUsers.list({ role: "student" }),
-        lmsUsers.list({ role: "teacher" }),
-        lmsUsers.list({ role: "parent" }),
+      const [docsRes, approvedRes, studentsRes, teachersRes, parentsRes, examRes] = await Promise.all([
+        lmsDocs.listPending().catch(() => ({ documents: [] })),
+        lmsDocs.list().catch(() => ({ documents: [] })),
+        lmsUsers.list({ role: "student" }).catch(err => { toast.error("Failed to load students: " + (err?.message ?? "unknown error")); return { users: [] }; }),
+        lmsUsers.list({ role: "teacher" }).catch(err => { toast.error("Failed to load teachers: " + (err?.message ?? "unknown error")); return { users: [] }; }),
+        lmsUsers.list({ role: "parent"  }).catch(err => { toast.error("Failed to load parents: "  + (err?.message ?? "unknown error")); return { users: [] }; }),
+        officialExams.list().catch(() => ({ exams: [] })),
       ]);
       setPendingDocs(docsRes.documents ?? []);
+      setApprovedDocs((approvedRes.documents ?? []).filter((d: LmsDocument) => d.approvalStatus === "approved"));
       const stu = studentsRes.users ?? [];
       const tea = teachersRes.users ?? [];
       const par = parentsRes.users  ?? [];
       setAllStudents(stu);
       setAllTeachers(tea);
       setAllParents(par);
+      setAllExams(examRes.exams ?? []);
       setPendingStudents(stu.filter(s => s.approvalStatus === "pending"));
       setPendingTeachers(tea.filter(t => t.approvalStatus === "pending"));
       setPendingParents(par.filter(p => p.approvalStatus === "pending"));
-    } catch {}
-    finally { setLoading(false); }
+    } catch (err: any) {
+      toast.error("Failed to load dashboard data: " + (err?.message ?? "unknown error"));
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -190,6 +201,27 @@ export default function AdminDashboard() {
       setPendingStudents(remove); setPendingTeachers(remove); setPendingParents(remove);
       toast.success("User deleted.");
     } catch (err: any) { toast.error(err.message ?? "Failed"); }
+  };
+
+  const deleteDoc = async (id: string) => {
+    if (!confirm("Delete this material permanently?")) return;
+    try {
+      await lmsDocs.delete(id);
+      setPendingDocs(p => p.filter(d => d._id !== id));
+      setApprovedDocs(p => p.filter(d => d._id !== id));
+      toast.success("Material deleted.");
+    } catch (err: any) { toast.error(err.message ?? "Failed to delete"); }
+  };
+
+  const toggleExamStatus = async (id: string, current: string) => {
+    const next = current === "active" ? "closed" : "active";
+    setBusyExam(id);
+    try {
+      await officialExams.setStatus(id, next);
+      setAllExams(exams => exams.map(e => e._id === id ? { ...e, status: next as any } : e));
+      toast.success(next === "active" ? "Exam activated!" : "Exam deactivated.");
+    } catch (err: any) { toast.error(err.message ?? "Failed"); }
+    finally { setBusyExam(null); }
   };
 
   const totalPending = pendingStudents.length + pendingTeachers.length + pendingParents.length + pendingDocs.length;
@@ -412,32 +444,48 @@ export default function AdminDashboard() {
         <div className="lg:col-span-4 bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
           <div className="h-1 gradient-orange" />
           <div className="p-5">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded-lg gradient-orange flex items-center justify-center">
                 <FileText className="h-4 w-4 text-white" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Document Approvals</h3>
-                <p className="text-xs text-muted-foreground">Student-uploaded notes pending review</p>
+                <h3 className="text-base font-bold text-foreground">Materials</h3>
+                <p className="text-xs text-muted-foreground">Manage student-uploaded notes</p>
               </div>
               {pendingDocs.length > 0 && (
                 <span className="bg-orange text-white text-xs font-bold px-2 py-0.5 rounded-full ml-auto">
-                  {pendingDocs.length}
+                  {pendingDocs.length} pending
                 </span>
               )}
             </div>
 
+            {/* Doc tabs */}
+            <div className="flex gap-1 bg-muted/40 rounded-lg p-1 mb-3">
+              {(["pending", "approved"] as const).map(tab => (
+                <button key={tab} onClick={() => setDocTab(tab)}
+                  className={`flex-1 text-xs font-bold py-1.5 rounded-md transition-colors capitalize ${
+                    docTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {tab === "pending" ? `Pending (${pendingDocs.length})` : `Approved (${approvedDocs.length})`}
+                </button>
+              ))}
+            </div>
+
             {loading ? (
               <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-orange" /></div>
-            ) : pendingDocs.length === 0 ? (
+            ) : (docTab === "pending" ? pendingDocs : approvedDocs).length === 0 ? (
               <div className="text-center py-8 border border-dashed border-border rounded-xl bg-muted/20">
                 <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-muted-foreground">All clear — no pending documents.</p>
+                <p className="text-sm font-semibold text-muted-foreground">
+                  {docTab === "pending" ? "All clear — no pending documents." : "No approved materials yet."}
+                </p>
               </div>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {pendingDocs.map(doc => (
-                  <div key={doc._id} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-amber-50/50 dark:bg-amber-950/10">
+                {(docTab === "pending" ? pendingDocs : approvedDocs).map(doc => (
+                  <div key={doc._id} className={`flex items-center gap-3 p-3 rounded-xl border border-border/60 ${
+                    docTab === "pending" ? "bg-amber-50/50 dark:bg-amber-950/10" : "bg-emerald-50/30 dark:bg-emerald-950/10"
+                  }`}>
                     <div className="w-9 h-9 rounded-lg gradient-orange flex items-center justify-center shrink-0">
                       <FileText className="h-4 w-4 text-white" />
                     </div>
@@ -455,14 +503,18 @@ export default function AdminDashboard() {
                         title="Preview">
                         <Eye className="h-3 w-3" /> Preview
                       </button>
-                      <button disabled={busyDoc === doc._id} onClick={() => approveDoc(doc._id, "approve")}
-                        className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
-                        {busyDoc === doc._id ? <Loader2 className="h-3 w-3 animate-spin" /> : "✓ Approve"}
-                      </button>
-                      <button disabled={busyDoc === doc._id} onClick={() => approveDoc(doc._id, "reject")}
-                        className="h-8 px-2 rounded-lg border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-bold transition-colors disabled:opacity-50">
-                        ✕
-                      </button>
+                      {docTab === "pending" && (
+                        <>
+                          <button disabled={busyDoc === doc._id} onClick={() => approveDoc(doc._id, "approve")}
+                            className="h-8 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold transition-colors disabled:opacity-50">
+                            {busyDoc === doc._id ? <Loader2 className="h-3 w-3 animate-spin" /> : "✓ Approve"}
+                          </button>
+                          <button disabled={busyDoc === doc._id} onClick={() => approveDoc(doc._id, "reject")}
+                            className="h-8 px-2 rounded-lg border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs font-bold transition-colors disabled:opacity-50">
+                            ✕
+                          </button>
+                        </>
+                      )}
                       <button onClick={() => deleteDoc(doc._id)}
                         className="h-8 px-2 rounded-lg border border-border text-muted-foreground hover:border-red-400 hover:text-red-500 flex items-center gap-1 text-xs font-bold transition-colors"
                         title="Delete">
@@ -526,6 +578,99 @@ export default function AdminDashboard() {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Exams Management ─────────────────────────────────────────────── */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div className="h-1 bg-gradient-to-r from-violet-500 to-purple-500" />
+        <div className="p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+              <Zap className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground">Exams Management</h3>
+              <p className="text-xs text-muted-foreground">Activate or deactivate exams for candidates</p>
+            </div>
+            <span className="ml-auto text-xs text-muted-foreground">{allExams.filter(e => e.status === "active").length} active</span>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-purple-500" /></div>
+          ) : allExams.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-border rounded-xl bg-muted/20">
+              <Zap className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-muted-foreground">No exams created yet.</p>
+              <button onClick={() => navigate("/lms/exams")} className="mt-3 text-xs text-violet-500 hover:underline font-bold">
+                Create your first exam →
+              </button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Title</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Subject</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Class</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Type</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Questions</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Duration</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Status</th>
+                    <th className="text-right text-xs font-bold text-muted-foreground pb-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {allExams.map(exam => (
+                    <tr key={exam._id} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-3 pr-4 font-semibold text-foreground max-w-[180px] truncate">{exam.title}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{exam.subject}</td>
+                      <td className="py-3 pr-4">
+                        <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">{exam.className ?? "All"}</span>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase text-white ${
+                          exam.type === "mcq" ? "bg-blue-500" : exam.type === "theory" ? "bg-purple-500" : "bg-orange-500"
+                        }`}>{exam.type}</span>
+                      </td>
+                      <td className="py-3 pr-4 text-muted-foreground">{exam.questions?.length ?? 0}</td>
+                      <td className="py-3 pr-4 text-muted-foreground">{exam.duration}m</td>
+                      <td className="py-3 pr-4">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-fit ${
+                          exam.status === "active"
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                            : exam.status === "draft"
+                            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${
+                            exam.status === "active" ? "bg-emerald-500 animate-pulse" : exam.status === "draft" ? "bg-amber-400" : "bg-slate-400"
+                          }`} />
+                          {exam.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          disabled={busyExam === exam._id}
+                          onClick={() => toggleExamStatus(exam._id, exam.status)}
+                          className={`h-8 px-3 rounded-lg text-xs font-bold transition-colors disabled:opacity-50 ${
+                            exam.status === "active"
+                              ? "bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-red-600 dark:bg-slate-800 dark:hover:bg-red-900/20 dark:text-slate-300 dark:hover:text-red-400"
+                              : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:hover:bg-emerald-900/40 dark:text-emerald-400"
+                          }`}
+                        >
+                          {busyExam === exam._id
+                            ? <Loader2 className="h-3 w-3 animate-spin" />
+                            : exam.status === "active" ? "Deactivate" : "Activate"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 

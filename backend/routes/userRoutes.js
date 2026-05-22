@@ -4,6 +4,7 @@ import {
   getUsers,
   getUserStats,
   updateUserApproval,
+  updateMe,
   deleteUser,
 } from "../controllers/userController.js";
 
@@ -17,6 +18,7 @@ const adminOnly = (req, res, next) => {
 };
 
 router.get   ("/stats",          protect, adminOnly, getUserStats);
+router.patch ("/me",             protect, updateMe);              // own profile — must be before /:id
 router.get   ("/",               protect, adminOnly, getUsers);
 router.patch ("/:id/approval",   protect, adminOnly, updateUserApproval);
 router.delete("/:id",            protect, adminOnly, deleteUser);

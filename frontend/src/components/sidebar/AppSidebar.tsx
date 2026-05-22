@@ -179,20 +179,51 @@ const parentNav: NavItem[] = [
   },
 ];
 
+const candidateNav: NavItem[] = [
+  {
+    title: "Exam Portal", url: "/candidate", icon: ClipboardList,
+    items: [{ title: "My Exams", url: "/candidate" }],
+  },
+  {
+    title: "By Class", url: "#", icon: School,
+    items: [
+      { title: "SS1 Exams",  url: "/candidate?class=SS1"  },
+      { title: "SS2 Exams",  url: "/candidate?class=SS2"  },
+      { title: "SS3 Exams",  url: "/candidate?class=SS3"  },
+      { title: "WAEC Exams", url: "/candidate?class=WAEC" },
+      { title: "JAMB Exams", url: "/candidate?class=JAMB" },
+    ],
+  },
+  {
+    title: "By Term", url: "#", icon: Calendar,
+    items: [
+      { title: "First Term",  url: "/candidate?term=first"  },
+      { title: "Second Term", url: "/candidate?term=second" },
+      { title: "Third Term",  url: "/candidate?term=third"  },
+    ],
+  },
+  {
+    title: "Exam Results", url: "/lms/results", icon: Trophy,
+    items: [{ title: "My Results", url: "/lms/results" }],
+  },
+];
+
 function getNavByRole(role: string): NavItem[] {
   switch (role) {
-    case "teacher": return teacherNav;
-    case "admin":   return adminNav;
-    case "parent":  return parentNav;
-    default:        return studentNav;
+    case "teacher":   return teacherNav;
+    case "admin":     return adminNav;
+    case "parent":    return parentNav;
+    case "candidate": return candidateNav;
+    default:          return studentNav;
   }
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  student: "Student Portal",
-  teacher: "Teacher Portal",
-  admin:   "Admin Portal",
-  parent:  "Parent Portal",
+  student:   "Student Portal",
+  teacher:   "Teacher Portal",
+  admin:     "Admin Portal",
+  parent:    "Parent Portal",
+  candidate: "Exam Portal",
 };
 
 // ─── Mobile top bar (shown only on mobile) ────────────────────────────────────

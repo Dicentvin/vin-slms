@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["student", "teacher", "admin", "parent"],
+      enum: ["student", "teacher", "admin", "parent", "candidate"],
       default: "student",
     },
     className: {
@@ -35,6 +35,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
+    },
+    dateOfBirth: {
+      type: String,
+      default: "",
+    },
+    image: {
+      type: String,   // URL from Cloudinary or any CDN
+      default: "",
     },
     // admin = auto-approved, student/teacher = pending until admin approves
     approvalStatus: {

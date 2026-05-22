@@ -248,6 +248,13 @@ export default function Register() {
                 </div>
 
                 <div className="space-y-1.5">
+                  <Label htmlFor="phone" className="text-sm font-semibold">Phone Number</Label>
+                  <Input id="phone" type="tel" placeholder="e.g. 08012345678"
+                    value={form.phone} onChange={set("phone")} disabled={loading}
+                    className="h-11 focus-visible:ring-[#3ecf8e] focus-visible:border-[#3ecf8e]" />
+                </div>
+
+                <div className="space-y-1.5">
                   <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
                   <div className="relative">
                     <Input id="password" type={showPass ? "text" : "password"}

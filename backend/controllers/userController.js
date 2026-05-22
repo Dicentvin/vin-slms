@@ -78,6 +78,30 @@ export const updateUserApproval = async (req, res) => {
   }
 };
 
+// PATCH /api/users/me  — update own profile fields (any authenticated user)
+export const updateMe = async (req, res) => {
+  try {
+    const allowed = ["phone", "dateOfBirth", "image", "name"];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: "No valid fields to update" });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-password");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    return res.json({ success: true, user });
+  } catch (err) {
+    console.error("updateMe error:", err);
+    return res.status(500).json({ success: false, message: "Failed to update profile" });
+  }
+};
+
 // DELETE /api/users/:id  (admin only)
 export const deleteUser = async (req, res) => {
   try {
