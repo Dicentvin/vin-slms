@@ -6,9 +6,10 @@ import {
   BookMarked, FileText, Trophy, Upload, ArrowRight,
   Atom, FlaskConical, Dna, Sigma, Clock,
   GraduationCap, Eye, Zap, BookOpen, ChevronRight,
-  PlayCircle, CheckCircle2, Lock, Loader2,
+  PlayCircle, CheckCircle2, Lock, Loader2, AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
 const CLASS_META = [
@@ -46,7 +47,7 @@ export default function StudentDashboard() {
   const navigate  = useNavigate();
   const [myDocs,     setMyDocs]     = useState<LmsDocument[]>([]);
   const [sharedDocs, setSharedDocs] = useState<LmsDocument[]>([]);
-  const [activeExams, setActiveExams] = useState<OfficialExam[]>([]);
+  const [allExams, setAllExams] = useState<OfficialExam[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [examsLoading, setExamsLoading] = useState(true);
 
@@ -61,8 +62,8 @@ export default function StudentDashboard() {
   }, []);
 
   useEffect(() => {
-    officialExams.list({ status: "active" })
-      .then(res => setActiveExams(res.exams ?? []))
+    officialExams.list()
+      .then(res => setAllExams(res.exams ?? []))
       .catch(() => {})
       .finally(() => setExamsLoading(false));
   }, []);
@@ -128,7 +129,7 @@ export default function StudentDashboard() {
             iconBg:"bg-white/20",  sub: "Shared materials", url: "/lms/study",
           },
           {
-            label: "Active Exams",  value: examsLoading ? "…" : activeExams.length,
+            label: "Active Exams",  value: examsLoading ? "…" : allExams.filter(e => e.status === "active").length,
             icon:  <FileText className="h-5 w-5 text-white" />,
             bg:    "bg-gradient-to-br from-purple-700 to-purple-500",
             iconBg:"bg-white/20",  sub: "Available now",   url: "#active-exams",
@@ -169,8 +170,8 @@ export default function StudentDashboard() {
                 <FileText className="h-4 w-4 text-white" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-foreground">Active Exams</h3>
-                <p className="text-xs text-muted-foreground">Exams available for you to take</p>
+                <h3 className="text-base font-bold text-foreground">All Exams</h3>
+                <p className="text-xs text-muted-foreground">Active exams can be attempted · Others are not yet available</p>
               </div>
             </div>
             <button onClick={() => navigate("/candidate")}
@@ -183,11 +184,11 @@ export default function StudentDashboard() {
             <div className="flex items-center justify-center py-10">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : activeExams.length === 0 ? (
+          ) : allExams.length === 0 ? (
             <div className="text-center py-10 border border-dashed border-border rounded-xl bg-muted/20">
               <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground font-medium">No active exams right now.</p>
-              <p className="text-xs text-muted-foreground mt-1">Check back later — your teacher will activate exams when ready.</p>
+              <p className="text-sm text-muted-foreground font-medium">No exams assigned yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Check back later — your teacher will publish exams when ready.</p>
             </div>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
@@ -204,24 +205,42 @@ export default function StudentDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {activeExams.map((exam, idx) => (
+                  {allExams.map((exam, idx) => {
+                    const isActive = exam.status === "active";
+                    const rowBg = isActive
+                      ? "hover:bg-muted/30 cursor-pointer"
+                      : "opacity-60 cursor-default bg-muted/10";
+                    const handleRowClick = () => {
+                      if (isActive) navigate(`/student/exam/${exam._id}`);
+                      else toast.error(`"${exam.title}" is not active yet. Wait for your teacher to activate it.`);
+                    };
+                    return (
                     <tr key={exam._id}
-                      className="hover:bg-muted/30 transition-colors group cursor-pointer"
-                      onClick={() => navigate(`/student/exam/${exam._id}`)}>
+                      className={`transition-colors group ${rowBg}`}
+                      onClick={handleRowClick}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center shrink-0">
-                            <span className="text-white font-extrabold text-xs">{idx + 1}</span>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isActive ? "bg-gradient-to-br from-purple-600 to-purple-400" : "bg-muted"}`}>
+                            {isActive
+                              ? <span className="text-white font-extrabold text-xs">{idx + 1}</span>
+                              : <Lock className="h-3.5 w-3.5 text-muted-foreground" />}
                           </div>
                           <div>
-                            <p className="font-semibold text-foreground group-hover:text-[#3ecf8e] transition-colors text-sm leading-snug">
+                            <p className={`font-semibold text-sm leading-snug transition-colors ${isActive ? "text-foreground group-hover:text-[#3ecf8e]" : "text-muted-foreground"}`}>
                               {exam.title}
                             </p>
-                            {exam.className !== "All" && (
-                              <span className="text-[10px] bg-navy/10 text-navy dark:bg-white/10 dark:text-white/70 font-semibold px-1.5 py-0.5 rounded-full mt-0.5 inline-block">
-                                {exam.className}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              {exam.className !== "All" && (
+                                <span className="text-[10px] bg-navy/10 text-navy dark:bg-white/10 dark:text-white/70 font-semibold px-1.5 py-0.5 rounded-full">
+                                  {exam.className}
+                                </span>
+                              )}
+                              {!isActive && (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full capitalize ${exam.status === "draft" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"}`}>
+                                  {exam.status}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -246,15 +265,25 @@ export default function StudentDashboard() {
                         <span className="text-xs font-bold text-foreground">{exam.totalMarks}</span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={e => { e.stopPropagation(); navigate(`/student/exam/${exam._id}`); }}
-                          className="inline-flex items-center gap-1.5 bg-[#3ecf8e] hover:bg-[#34b27b] text-black text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
-                          <PlayCircle className="h-3.5 w-3.5" />
-                          <span className="hidden sm:inline">Start</span>
-                        </button>
+                        {isActive ? (
+                          <button
+                            onClick={e => { e.stopPropagation(); navigate(`/student/exam/${exam._id}`); }}
+                            className="inline-flex items-center gap-1.5 bg-[#3ecf8e] hover:bg-[#34b27b] text-black text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                            <PlayCircle className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Start</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={e => { e.stopPropagation(); toast.error(`"${exam.title}" is not active yet.`); }}
+                            className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-not-allowed">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            <span className="hidden sm:inline">Locked</span>
+                          </button>
+                        )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

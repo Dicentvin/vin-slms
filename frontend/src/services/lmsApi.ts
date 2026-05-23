@@ -88,6 +88,12 @@ export const lmsUsers = {
     fetch(`${BASE}/api/users/${id}`, {
       method: "DELETE", headers: authHeaders(),
     }).then(handle<{ success: boolean }>),
+
+  update: (id: string, data: { name?: string; email?: string; className?: string; phone?: string }) =>
+    fetch(`${BASE}/api/users/${id}`, {
+      method: "PATCH", headers: jsonHeaders(),
+      body: JSON.stringify(data),
+    }).then(handle<{ success: boolean; user: LmsUser }>),
 };
 
 // ─── Documents ────────────────────────────────────────────────────────────────

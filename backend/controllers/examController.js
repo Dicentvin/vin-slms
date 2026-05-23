@@ -46,7 +46,7 @@ function studentClassFilter(user) {
     return { $in: [user.className, "All"] };
   }
   // Student has no class assigned — they can only see "All" exams
-  return "All";
+  return { $in: ["All"] };
 }
 
 // ── CREATE ────────────────────────────────────────────────────────────────────
@@ -115,8 +115,10 @@ export const getExams = async (req, res) => {
       if (subject)   filter.subject   = subject;
       if (type)      filter.type      = type;
     } else {
-      // Students always see active exams only, filtered to their class
-      filter.status    = "active";
+      // Students see ALL exams for their class (active, draft, closed)
+      // so the dashboard can show upcoming/inactive exams with a lock message.
+      // Status filter is optional — if passed, honour it (e.g. status=active for stat card).
+      if (status) filter.status = status;
       filter.className = studentClassFilter(req.user);
 
       // Allow optional extra filters from student (e.g. subject, type)
