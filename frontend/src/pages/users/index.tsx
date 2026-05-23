@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
-import type { pagination, user, UserRole } from "@/types";
+import type { user, UserRole } from "@/types";
 import CustomAlert from "@/components/global/CustomAlert";
 import Search from "@/components/global/Search";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
-import { api } from "@/lib/api";
+import { lmsUsers, type LmsUser } from "@/services/lmsApi";
 import UserTable from "@/components/users/UserTable";
 import UserDialog from "@/components/users/UserDialog";
 
@@ -14,6 +14,18 @@ interface Props {
   role: UserRole;
   title: string;
   description: string;
+}
+
+/** Map LmsUser → local user shape so existing UserTable works unchanged */
+function toUser(u: LmsUser): user {
+  return {
+    _id:            u._id,
+    name:           u.name,
+    email:          u.email,
+    role:           u.role as UserRole,
+    className:      u.className,
+    approvalStatus: u.approvalStatus as any,
+  };
 }
 
 export default function UserManagementPage({ role, title, description }: Props) {
@@ -37,32 +49,37 @@ export default function UserManagementPage({ role, title, description }: Props) 
     return () => clearTimeout(handler);
   }, [search]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const searchParam = debouncedSearch ? `&search=${debouncedSearch}` : "";
-      const roleParam = `&role=${role}`;
-      const { data } = (await api.get(
-        `/users?page=${page}&limit=10${roleParam}${searchParam}`
-      )) as { data: { users: user[]; pagination: pagination } };
+      const res = await lmsUsers.list({ role });
+      let fetched = (res.users ?? []).map(toUser);
 
-      if (data.users) {
-        setUsers(data.users);
-        setTotalPages(data.pagination.pages);
-      } else {
-        setUsers([]);
+      // Client-side search filter (backend doesn't support search param yet)
+      if (debouncedSearch) {
+        const q = debouncedSearch.toLowerCase();
+        fetched = fetched.filter(
+          (u) =>
+            u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q)
+        );
       }
-    } catch (error) {
+
+      const limit = 10;
+      const total = fetched.length;
+      setTotalPages(Math.max(1, Math.ceil(total / limit)));
+      setUsers(fetched.slice((page - 1) * limit, page * limit));
+    } catch (error: any) {
       console.log(error);
-      toast.error(`Failed to load ${role}s`);
+      toast.error(`Failed to load ${role}s: ${error?.message ?? "unknown error"}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [role, page, debouncedSearch]);
 
   useEffect(() => {
     fetchUsers();
-  }, [role, page, debouncedSearch]);
+  }, [fetchUsers]);
 
   const handleCreate = () => {
     setEditingUser(null);
@@ -72,11 +89,11 @@ export default function UserManagementPage({ role, title, description }: Props) 
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await api.delete(`/users/delete/${deleteId}`);
+      await lmsUsers.delete(deleteId);
       toast.success("User deleted");
       fetchUsers();
-    } catch (error) {
-      toast.error("Failed to delete user");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to delete user");
       console.log(error);
     } finally {
       setIsDeleteOpen(false);

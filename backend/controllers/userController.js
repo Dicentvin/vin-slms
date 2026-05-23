@@ -102,6 +102,37 @@ export const updateMe = async (req, res) => {
   }
 };
 
+// PATCH /api/users/:id  — admin updates any user's basic fields
+export const updateUser = async (req, res) => {
+  try {
+    const allowed = ["name", "email", "className", "phone", "dateOfBirth", "image"];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ success: false, message: "No valid fields to update" });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-password");
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (user.role === "admin") {
+      return res.status(403).json({ success: false, message: "Cannot edit admin accounts this way" });
+    }
+    return res.json({ success: true, user });
+  } catch (err) {
+    console.error("updateUser error:", err);
+    if (err.name === "ValidationError") {
+      const message = Object.values(err.errors).map(e => e.message).join(", ");
+      return res.status(400).json({ success: false, message });
+    }
+    return res.status(500).json({ success: false, message: "Failed to update user" });
+  }
+};
+
 // DELETE /api/users/:id  (admin only)
 export const deleteUser = async (req, res) => {
   try {

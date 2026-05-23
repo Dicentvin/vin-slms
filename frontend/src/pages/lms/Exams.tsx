@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import { Plus, FileText, Clock, Users, Loader2 } from "lucide-react";
+import { officialExams, type OfficialExam } from "@/services/lmsApi";
+import { Plus, FileText, Clock, Users, Loader2, BookOpen, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/hooks/AuthProvider";
 
 import { Button } from "@/components/ui/button";
@@ -13,14 +13,13 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { useNavigate } from "react-router";
-import type { exam } from "@/types";
 import { toast } from "sonner";
 import ExamGenerator from "@/components/lms/ExamGenerator";
 
 const Exams = () => {
   const { user } = useAuth();
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
-  const [exams, setExams] = useState<exam[]>([]);
+  const [exams, setExams] = useState<OfficialExam[]>([]);
   const [isGenOpen, setIsGenOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -28,10 +27,10 @@ const Exams = () => {
   const fetchExams = async () => {
     try {
       setLoading(true);
-      const { data } = await api.get("/exams");
-      setExams(Array.isArray(data) ? data : (data.exams ?? []));
-    } catch (error) {
-      toast.error("Failed to load exams");
+      const res = await officialExams.list();
+      setExams(res.exams ?? []);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Failed to load exams");
       console.log(error);
     } finally {
       setLoading(false);
@@ -50,7 +49,14 @@ const Exams = () => {
     );
   }
 
-  const date = new Date();
+  const typeColor = (type: string) =>
+    type === "mcq" ? "bg-blue-500" : type === "theory" ? "bg-purple-500" : "bg-orange-500";
+
+  const statusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+    if (status === "active")  return "default";
+    if (status === "closed")  return "destructive";
+    return "secondary"; // draft
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -58,7 +64,7 @@ const Exams = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Quizzes & Exams</h1>
           <p className="text-muted-foreground">
-            Manage assessments and view results.
+            {isTeacher ? "Manage assessments and view results." : "View and take your available exams."}
           </p>
         </div>
         {isTeacher && (
@@ -69,8 +75,12 @@ const Exams = () => {
       </div>
 
       {exams.length === 0 && (
-        <div className="flex items-center justify-center h-40">
-          <p className="text-muted-foreground">No exams found</p>
+        <div className="flex flex-col items-center justify-center h-40 gap-2">
+          <BookOpen className="h-10 w-10 text-muted-foreground/40" />
+          <p className="text-muted-foreground text-sm font-medium">No exams found</p>
+          {!isTeacher && (
+            <p className="text-muted-foreground text-xs">Your teacher will activate exams when ready.</p>
+          )}
         </div>
       )}
 
@@ -78,39 +88,51 @@ const Exams = () => {
         {exams.map((exam) => (
           <Card className="hover:shadow-md transition-shadow" key={exam._id}>
             <CardHeader>
-              <div className="pb-2">
-                <Badge>
-                  {exam.isActive || new Date(exam.dueDate) < date
-                    ? "Active"
-                    : "Inactive"}
+              <div className="pb-2 flex items-center gap-2 flex-wrap">
+                <Badge variant={statusVariant(exam.status)}>
+                  {exam.status.charAt(0).toUpperCase() + exam.status.slice(1)}
                 </Badge>
-                <span className="text-xs text-muted-foreground ml-2">
-                  {new Date(exam.dueDate).toLocaleDateString()}
+                <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full uppercase tracking-wide ${typeColor(exam.type)}`}>
+                  {exam.type}
                 </span>
+                {exam.className !== "All" && (
+                  <span className="text-[10px] font-bold bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                    {exam.className}
+                  </span>
+                )}
               </div>
               <CardTitle className="mt-2 text-lg">{exam.title}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                {exam.subject.name}
+                {exam.subject}
               </div>
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                {exam.class.name}
+                {exam.className === "All" ? "All Classes" : exam.className}
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 {exam.duration} mins
               </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                {exam.totalMarks} marks · {exam.questions?.length ?? 0} questions
+              </div>
             </CardContent>
             <CardFooter>
               <Button
-                variant="outline"
+                variant={exam.status === "active" ? "default" : "outline"}
                 className="w-full"
-                onClick={() => navigate(`/lms/exams/${exam._id}`)}
+                disabled={!isTeacher && exam.status !== "active"}
+                onClick={() =>
+                  isTeacher
+                    ? navigate(`/student/exam/${exam._id}`)
+                    : navigate(`/student/exam/${exam._id}`)
+                }
               >
-                {isTeacher ? "Manage Questions" : "Start Quiz"}
+                {isTeacher ? "View Exam" : exam.status === "active" ? "Start Exam" : "Not Available"}
               </Button>
             </CardFooter>
           </Card>
