@@ -9,13 +9,15 @@
  *   DELETE /api/exams/:id             — delete exam
  *   PATCH  /api/exams/:id/status      — activate | close | draft
  *
- * Candidate routes:
- *   POST   /api/exams/:id/start       — start attempt, returns submission id
+ * Student routes:
+ *   GET    /api/exams/my-results      — list all my submission results
+ *   POST   /api/exams/:id/start       — start attempt, returns submission + sanitised exam
  *   POST   /api/exams/:id/submit      — submit all answers
  *   GET    /api/exams/:id/result      — get own result (if allowReview)
  *
  * Admin/Teacher marking:
- *   GET    /api/exams/:id/submissions — list all submissions for an exam
+ *   GET    /api/exams/:id/submissions         — list all submissions
+ *   GET    /api/exams/:id/submissions/:sid    — single submission (for marking)
  *   PATCH  /api/exams/:id/submissions/:sid/mark — mark theory answers
  */
 
@@ -28,11 +30,23 @@ const isStaff = (user) => ["admin", "teacher"].includes(user.role);
 /** Strip correct answers from questions before sending to student */
 function sanitizeForStudent(exam) {
   const obj = exam.toObject ? exam.toObject() : { ...exam };
-  obj.questions = obj.questions.map(q => {
+  obj.questions = (obj.questions ?? []).map(q => {
     const { correctAnswer, explanation, sampleAnswer, ...rest } = q;
     return rest;
   });
   return obj;
+}
+
+/**
+ * Build the class-match filter for a student.
+ * Matches exams whose className is the student's class OR "All".
+ */
+function studentClassFilter(user) {
+  if (user.className) {
+    return { $in: [user.className, "All"] };
+  }
+  // Student has no class assigned — they can only see "All" exams
+  return "All";
 }
 
 // ── CREATE ────────────────────────────────────────────────────────────────────
@@ -63,7 +77,7 @@ export const createExam = async (req, res) => {
       title, description, subject,
       className: className || "All",
       type, duration,
-      passMark: passMark || 0,
+      passMark: passMark ?? 0,
       questions,
       allowReview: allowReview ?? true,
       shuffleQ:    shuffleQ    ?? false,
@@ -94,18 +108,20 @@ export const getExams = async (req, res) => {
     const filter = {};
 
     if (isStaff(req.user)) {
-      // Admin/teacher see all exams they created (or all if admin)
+      // Teachers see only their own exams; admins see all
       if (req.user.role === "teacher") filter.createdBy = req.user._id;
       if (status)    filter.status    = status;
       if (className) filter.className = { $in: [className, "All"] };
       if (subject)   filter.subject   = subject;
       if (type)      filter.type      = type;
     } else {
-      // Students only see active exams for their class
-      filter.status = "active";
-      if (req.user.className) {
-        filter.className = { $in: [req.user.className, "All"] };
-      }
+      // Students always see active exams only, filtered to their class
+      filter.status    = "active";
+      filter.className = studentClassFilter(req.user);
+
+      // Allow optional extra filters from student (e.g. subject, type)
+      if (subject) filter.subject = subject;
+      if (type)    filter.type    = type;
     }
 
     const exams = await Exam.find(filter)
@@ -126,10 +142,18 @@ export const getExam = async (req, res) => {
     const exam = await Exam.findById(req.params.id);
     if (!exam) return res.status(404).json({ success: false, message: "Exam not found" });
 
-    // Students: only see active exams for their class
     if (!isStaff(req.user)) {
+      // Must be active
       if (exam.status !== "active") {
         return res.status(403).json({ success: false, message: "This exam is not currently active" });
+      }
+      // Must be for student's class (or "All")
+      if (exam.className !== "All" && req.user.className && exam.className !== req.user.className) {
+        return res.status(403).json({ success: false, message: "This exam is not available for your class" });
+      }
+      // Must not have passed its closing time
+      if (exam.closesAt && new Date() > new Date(exam.closesAt)) {
+        return res.status(403).json({ success: false, message: "This exam has closed" });
       }
       return res.json({ success: true, exam: sanitizeForStudent(exam) });
     }
@@ -152,8 +176,8 @@ export const updateExam = async (req, res) => {
     if (!exam) return res.status(404).json({ success: false, message: "Exam not found" });
 
     if (exam.status === "active") {
-      // Only allow closing or scheduling changes when active
-      const allowedFields = ["closesAt", "status", "description"];
+      // Only allow safe fields when exam is live
+      const allowedFields = ["closesAt", "description"];
       const update = {};
       allowedFields.forEach(f => { if (req.body[f] !== undefined) update[f] = req.body[f]; });
       Object.assign(exam, update);
@@ -170,14 +194,14 @@ export const updateExam = async (req, res) => {
       if (className)   exam.className   = className;
       if (type)        exam.type        = type;
       if (duration)    exam.duration    = duration;
-      if (passMark !== undefined)  exam.passMark    = passMark;
+      if (passMark     !== undefined)  exam.passMark    = passMark;
       if (questions)   exam.questions   = questions;
-      if (allowReview !== undefined) exam.allowReview = allowReview;
-      if (shuffleQ    !== undefined) exam.shuffleQ    = shuffleQ;
-      if (shuffleOpts !== undefined) exam.shuffleOpts = shuffleOpts;
+      if (allowReview  !== undefined) exam.allowReview = allowReview;
+      if (shuffleQ     !== undefined) exam.shuffleQ    = shuffleQ;
+      if (shuffleOpts  !== undefined) exam.shuffleOpts = shuffleOpts;
       if (attemptsAllowed) exam.attemptsAllowed = attemptsAllowed;
-      if (scheduledAt !== undefined) exam.scheduledAt = scheduledAt;
-      if (closesAt    !== undefined) exam.closesAt    = closesAt;
+      if (scheduledAt  !== undefined) exam.scheduledAt = scheduledAt;
+      if (closesAt     !== undefined) exam.closesAt    = closesAt;
     }
 
     await exam.save();
@@ -230,7 +254,7 @@ export const setExamStatus = async (req, res) => {
 
     exam.status = status;
     await exam.save();
-    return res.json({ success: true, exam });
+    return res.json({ success: true, exam, message: `Exam ${status}` });
   } catch (err) {
     console.error("setExamStatus error:", err);
     return res.status(500).json({ success: false, message: "Failed to update status" });
@@ -242,27 +266,22 @@ export const startExam = async (req, res) => {
   try {
     const exam = await Exam.findById(req.params.id);
     if (!exam) return res.status(404).json({ success: false, message: "Exam not found" });
+
     if (exam.status !== "active") {
       return res.status(400).json({ success: false, message: "This exam is not currently active" });
     }
 
-    // Check closesAt
+    // Class eligibility check
+    if (exam.className !== "All" && req.user.className && exam.className !== req.user.className) {
+      return res.status(403).json({ success: false, message: "This exam is not available for your class" });
+    }
+
+    // Closing time check
     if (exam.closesAt && new Date() > new Date(exam.closesAt)) {
       return res.status(400).json({ success: false, message: "This exam has closed" });
     }
 
-    // Check existing attempts
-    const existingCount = await Submission.countDocuments({
-      examId: exam._id, studentId: req.user._id,
-    });
-    if (existingCount >= exam.attemptsAllowed) {
-      return res.status(400).json({
-        success: false,
-        message: `You have used all ${exam.attemptsAllowed} attempt(s) for this exam`,
-      });
-    }
-
-    // Check if already in progress
+    // Check if an in-progress attempt already exists — resume it
     const inProgress = await Submission.findOne({
       examId: exam._id, studentId: req.user._id, status: "in_progress",
     });
@@ -272,6 +291,18 @@ export const startExam = async (req, res) => {
         submission: inProgress,
         exam: sanitizeForStudent(exam),
         resumed: true,
+      });
+    }
+
+    // Check attempt limits (count only completed attempts)
+    const completedCount = await Submission.countDocuments({
+      examId: exam._id, studentId: req.user._id,
+      status: { $in: ["submitted", "marked"] },
+    });
+    if (completedCount >= exam.attemptsAllowed) {
+      return res.status(400).json({
+        success: false,
+        message: `You have used all ${exam.attemptsAllowed} attempt(s) for this exam`,
       });
     }
 
@@ -285,10 +316,9 @@ export const startExam = async (req, res) => {
       maxScore:      exam.totalMarks,
       status:        "in_progress",
       startedAt:     new Date(),
-      attemptNumber: existingCount + 1,
+      attemptNumber: completedCount + 1,
     });
 
-    // Return exam WITHOUT correct answers
     return res.status(201).json({
       success: true,
       submission,
@@ -305,7 +335,10 @@ export const startExam = async (req, res) => {
 export const submitExam = async (req, res) => {
   try {
     const { submissionId, answers = [], timeTaken = 0 } = req.body;
-    // answers: [{ questionId, selectedOption?, answerText? }]
+
+    if (!submissionId) {
+      return res.status(400).json({ success: false, message: "submissionId is required" });
+    }
 
     const submission = await Submission.findOne({
       _id: submissionId, examId: req.params.id, studentId: req.user._id,
@@ -318,7 +351,7 @@ export const submitExam = async (req, res) => {
     const exam = await Exam.findById(req.params.id);
     if (!exam) return res.status(404).json({ success: false, message: "Exam not found" });
 
-    // Build answer records + auto-score MCQ
+    // Build answer records and auto-score MCQ
     let mcqScore = 0;
     const processedAnswers = answers.map(ans => {
       const question = exam.questions.id(ans.questionId);
@@ -335,12 +368,12 @@ export const submitExam = async (req, res) => {
           marksAwarded:   isCorrect ? question.marks : 0,
         };
       } else {
-        // Theory — no auto-score
+        // Theory — no auto-score, teacher marks later
         return {
-          questionId:  question._id,
-          type:        "theory",
-          answerText:  ans.answerText ?? "",
-          marksAwarded: 0,   // teacher marks later
+          questionId:   question._id,
+          type:         "theory",
+          answerText:   ans.answerText ?? "",
+          marksAwarded: 0,
         };
       }
     }).filter(Boolean);
@@ -352,27 +385,27 @@ export const submitExam = async (req, res) => {
     submission.theoryScore  = 0;
     submission.totalScore   = mcqScore;
     submission.percentage   = exam.totalMarks > 0 ? Math.round((mcqScore / exam.totalMarks) * 100) : 0;
-    submission.status       = "submitted";
+    submission.status       = hasTheory ? "submitted" : "marked";
     submission.submittedAt  = new Date();
     submission.timeTaken    = timeTaken;
     submission.theoryMarkingStatus = hasTheory ? "pending" : "complete";
 
-    // If no theory, mark as fully marked
-    if (!hasTheory) submission.status = "marked";
-
     await submission.save();
 
-    // Return result (with correct answers if allowReview is on and no theory)
+    // Build result object — include passMark for pass/fail display
     const result = {
       mcqScore,
-      theoryScore:    0,
-      totalScore:     mcqScore,
-      maxScore:       exam.totalMarks,
-      percentage:     submission.percentage,
+      theoryScore:         0,
+      totalScore:          mcqScore,
+      maxScore:            exam.totalMarks,
+      passMark:            exam.passMark ?? 0,
+      percentage:          submission.percentage,
+      passed:              submission.percentage >= (exam.passMark ?? 0),
       hasTheory,
       theoryMarkingStatus: submission.theoryMarkingStatus,
     };
 
+    // Include full review if allowed and no theory
     if (exam.allowReview && !hasTheory) {
       result.answers = processedAnswers;
       result.questions = exam.questions.map(q => ({
@@ -388,7 +421,7 @@ export const submitExam = async (req, res) => {
   }
 };
 
-// ── GET OWN RESULT ────────────────────────────────────────────────────────────
+// ── GET OWN RESULT (single exam) ──────────────────────────────────────────────
 export const getMyResult = async (req, res) => {
   try {
     const submission = await Submission.findOne({
@@ -406,13 +439,16 @@ export const getMyResult = async (req, res) => {
     const result = {
       submission,
       exam: {
-        title: exam.title, subject: exam.subject,
-        type: exam.type, totalMarks: exam.totalMarks,
+        title:      exam.title,
+        subject:    exam.subject,
+        type:       exam.type,
+        totalMarks: exam.totalMarks,
+        passMark:   exam.passMark ?? 0,
         allowReview: exam.allowReview,
       },
     };
 
-    // Include answer review if allowed and fully marked
+    // Include full question review if allowed and fully marked
     if (exam.allowReview && submission.status === "marked") {
       result.questions = exam.questions;
     }
@@ -427,13 +463,25 @@ export const getMyResult = async (req, res) => {
 // ── GET ALL MY RESULTS (student) ──────────────────────────────────────────────
 export const getMyResults = async (req, res) => {
   try {
-    const submissions = await Submission.find({
+    const rawSubmissions = await Submission.find({
       studentId: req.user._id,
-      status: { $in: ["submitted", "marked"] },
+      status:    { $in: ["submitted", "marked"] },
     })
-      .populate("examId", "title subject type totalMarks duration")
+      .populate("examId", "title subject type totalMarks duration passMark")
       .sort({ submittedAt: -1 })
       .lean();
+
+    // Normalise: flatten populated examId into a consistent shape expected by the frontend
+    const submissions = rawSubmissions.map(s => ({
+      ...s,
+      examId:   s.examId?._id ?? s.examId,   // keep as plain string id
+      examTitle:   s.examId?.title   ?? "",
+      examSubject: s.examId?.subject ?? "",
+      examType:    s.examId?.type    ?? "",
+      examTotalMarks: s.examId?.totalMarks ?? 0,
+      examDuration:   s.examId?.duration   ?? 0,
+      passMark:       s.examId?.passMark   ?? 0,
+    }));
 
     return res.json({ success: true, count: submissions.length, submissions });
   } catch (err) {
@@ -454,7 +502,7 @@ export const getSubmissions = async (req, res) => {
     if (status) filter.status = status;
 
     const submissions = await Submission.find(filter)
-      .select("-answers.answerText")   // don't return full essay text in list
+      .select("-answers.answerText")   // skip full essay text in list view
       .sort({ submittedAt: -1 })
       .lean();
 
@@ -509,7 +557,6 @@ export const markSubmission = async (req, res) => {
     let theoryScore = 0;
     let allMarked   = true;
 
-    // Apply marks
     marks.forEach(({ questionId, marksAwarded, feedback }) => {
       const ans = submission.answers.find(
         a => a.questionId.toString() === questionId && a.type === "theory"
@@ -517,14 +564,14 @@ export const markSubmission = async (req, res) => {
       if (ans) {
         const question = exam.questions.id(questionId);
         const maxQ     = question?.marks ?? 0;
-        ans.marksAwarded = Math.min(Math.max(0, marksAwarded), maxQ);
+        ans.marksAwarded = Math.min(Math.max(0, Number(marksAwarded)), maxQ);
         ans.feedback     = feedback ?? "";
         ans.markedBy     = req.user._id;
         ans.markedAt     = new Date();
       }
     });
 
-    // Recalculate theory score
+    // Recalculate theory score and check if all theory answers are marked
     submission.answers.forEach(ans => {
       if (ans.type === "theory") {
         theoryScore += ans.marksAwarded;

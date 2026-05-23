@@ -16,6 +16,7 @@ export interface user {
   className?: string;
   phone?: string;
   dateOfBirth?: string;
+  image?: string;
   approvalStatus?: ApprovalStatus;
   studentClass?: Class;
   teacherSubjects?: subject[];

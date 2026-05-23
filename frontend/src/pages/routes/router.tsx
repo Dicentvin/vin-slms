@@ -21,6 +21,7 @@ import Salary             from "@/pages/finance/Salary";
 import Expenses           from "@/pages/finance/Expenses";
 import ClassPage          from "@/pages/classes/ClassPage";
 import CandidateDashboard from "@/pages/dashboards/CandidateDashboard";
+import StudentExamPage    from "@/pages/lms/StudentExamPage";
 
 // ─── Global Error Boundary ────────────────────────────────────────────────────
 function RootErrorBoundary() {
@@ -127,8 +128,9 @@ export const router = createBrowserRouter([
           // LMS / Study Hub
           { path: "lms/study",      element: <StudyHub /> },
           { path: "lms/study/:id",  element: <StudyDocument /> },
-          { path: "lms/exams",      element: <Exams /> },
-          { path: "lms/exams/:id",  element: <Exam /> },
+          { path: "lms/exams",          element: <Exams /> },
+          { path: "lms/exams/:id",      element: <Exam /> },
+          { path: "student/exam/:id",   element: <StudentExamPage /> },
           { path: "lms/results",    element: <ExamResults /> },
           { path: "lms/quiz",       element: <QuizPanel /> },
           { path: "lms/flashcards", element: <Flashcards /> },

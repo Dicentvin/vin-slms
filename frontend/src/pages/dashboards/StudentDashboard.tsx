@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/AuthProvider";
-import { lmsDocs, type LmsDocument } from "@/services/lmsApi";
+import { lmsDocs, officialExams, type LmsDocument, type OfficialExam } from "@/services/lmsApi";
 import {
   BookMarked, FileText, Trophy, Upload, ArrowRight,
   Atom, FlaskConical, Dna, Sigma, Clock,
-  GraduationCap, Eye, Zap, BookOpen,
+  GraduationCap, Eye, Zap, BookOpen, ChevronRight,
+  PlayCircle, CheckCircle2, Lock, Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const CLASS_META = [
   { name: "SS1",  route: "/classes/SS1",  gradient: "from-indigo-600 to-indigo-400",           text: "text-white"  },
@@ -44,7 +46,9 @@ export default function StudentDashboard() {
   const navigate  = useNavigate();
   const [myDocs,     setMyDocs]     = useState<LmsDocument[]>([]);
   const [sharedDocs, setSharedDocs] = useState<LmsDocument[]>([]);
+  const [activeExams, setActiveExams] = useState<OfficialExam[]>([]);
   const [loading,    setLoading]    = useState(true);
+  const [examsLoading, setExamsLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([lmsDocs.list(), lmsDocs.listShared()])
@@ -56,8 +60,18 @@ export default function StudentDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    officialExams.list({ status: "active" })
+      .then(res => setActiveExams(res.exams ?? []))
+      .catch(() => {})
+      .finally(() => setExamsLoading(false));
+  }, []);
+
   const recentShared = sharedDocs.slice(0, 4);
   const pendingCount = myDocs.filter(d => d.approvalStatus === "pending").length;
+
+  const typeColor = (t: string) =>
+    t === "mcq" ? "bg-blue-500" : t === "theory" ? "bg-purple-500" : "bg-orange-500";
 
   return (
     <div className="flex-1 space-y-6 p-6 page-fade">
@@ -114,10 +128,10 @@ export default function StudentDashboard() {
             iconBg:"bg-white/20",  sub: "Shared materials", url: "/lms/study",
           },
           {
-            label: "My Exams",      value: "—",
+            label: "Active Exams",  value: examsLoading ? "…" : activeExams.length,
             icon:  <FileText className="h-5 w-5 text-white" />,
             bg:    "bg-gradient-to-br from-purple-700 to-purple-500",
-            iconBg:"bg-white/20",  sub: "Upcoming exams",   url: "/candidate",
+            iconBg:"bg-white/20",  sub: "Available now",   url: "#active-exams",
           },
           {
             label: "Exam Results",  value: "—",
@@ -126,7 +140,8 @@ export default function StudentDashboard() {
             iconBg:"bg-white/20",  sub: "Latest scores",    url: "/candidate",
           },
         ].map(s => (
-          <div key={s.label} onClick={() => navigate(s.url)}
+          <div key={s.label}
+            onClick={() => s.url.startsWith("#") ? document.getElementById("active-exams")?.scrollIntoView({ behavior: "smooth" }) : navigate(s.url)}
             className={`group cursor-pointer rounded-2xl p-5 text-white relative overflow-hidden card-hover ${s.bg}`}>
             <div className="absolute inset-0 opacity-10"
               style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
@@ -142,6 +157,109 @@ export default function StudentDashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* ── Active Exams Table ─────────────────────────────── */}
+      <div id="active-exams" className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div className="h-1 bg-gradient-to-r from-purple-600 via-blue-500 to-[#3ecf8e]" />
+        <div className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-foreground">Active Exams</h3>
+                <p className="text-xs text-muted-foreground">Exams available for you to take</p>
+              </div>
+            </div>
+            <button onClick={() => navigate("/candidate")}
+              className="text-xs text-[#3ecf8e] font-bold flex items-center gap-1 hover:underline">
+              View all <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+
+          {examsLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : activeExams.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-border rounded-xl bg-muted/20">
+              <FileText className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground font-medium">No active exams right now.</p>
+              <p className="text-xs text-muted-foreground mt-1">Check back later — your teacher will activate exams when ready.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50 border-b border-border">
+                    <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3">Exam</th>
+                    <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3 hidden sm:table-cell">Subject</th>
+                    <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3 hidden md:table-cell">Type</th>
+                    <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3 hidden md:table-cell">Duration</th>
+                    <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3 hidden lg:table-cell">Questions</th>
+                    <th className="text-left text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3 hidden lg:table-cell">Marks</th>
+                    <th className="text-right text-xs font-bold uppercase tracking-wider text-muted-foreground px-4 py-3">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {activeExams.map((exam, idx) => (
+                    <tr key={exam._id}
+                      className="hover:bg-muted/30 transition-colors group cursor-pointer"
+                      onClick={() => navigate(`/student/exam/${exam._id}`)}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-purple-400 flex items-center justify-center shrink-0">
+                            <span className="text-white font-extrabold text-xs">{idx + 1}</span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-foreground group-hover:text-[#3ecf8e] transition-colors text-sm leading-snug">
+                              {exam.title}
+                            </p>
+                            {exam.className !== "All" && (
+                              <span className="text-[10px] bg-navy/10 text-navy dark:bg-white/10 dark:text-white/70 font-semibold px-1.5 py-0.5 rounded-full mt-0.5 inline-block">
+                                {exam.className}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="text-muted-foreground text-xs font-medium">{exam.subject}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className={`text-[10px] font-extrabold text-white px-2 py-0.5 rounded-full uppercase tracking-wide ${typeColor(exam.type)}`}>
+                          {exam.type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          {exam.duration} min
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-xs text-muted-foreground">{exam.questions?.length ?? 0}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-xs font-bold text-foreground">{exam.totalMarks}</span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={e => { e.stopPropagation(); navigate(`/student/exam/${exam._id}`); }}
+                          className="inline-flex items-center gap-1.5 bg-[#3ecf8e] hover:bg-[#34b27b] text-black text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          <span className="hidden sm:inline">Start</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Main grid ─────────────────────────────────────── */}

@@ -263,12 +263,20 @@ export interface ExamSubmission {
   totalScore: number;
   maxScore: number;
   percentage: number;
+  passMark?: number;
+  passed?: boolean;
   status: "in_progress" | "submitted" | "marked";
   theoryMarkingStatus: "pending" | "partial" | "complete";
   startedAt: string;
   submittedAt?: string;
   timeTaken: number;
   attemptNumber: number;
+  // Normalised exam fields returned by getMyResults
+  examTitle?: string;
+  examSubject?: string;
+  examType?: string;
+  examTotalMarks?: number;
+  examDuration?: number;
 }
 
 export interface ExamResult {
