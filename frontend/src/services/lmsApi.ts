@@ -88,12 +88,6 @@ export const lmsUsers = {
     fetch(`${BASE}/api/users/${id}`, {
       method: "DELETE", headers: authHeaders(),
     }).then(handle<{ success: boolean }>),
-
-  update: (id: string, data: { name?: string; email?: string; className?: string; phone?: string }) =>
-    fetch(`${BASE}/api/users/${id}`, {
-      method: "PATCH", headers: jsonHeaders(),
-      body: JSON.stringify(data),
-    }).then(handle<{ success: boolean; user: LmsUser }>),
 };
 
 // ─── Documents ────────────────────────────────────────────────────────────────
@@ -356,6 +350,13 @@ export const officialExams = {
       .then(handle<{ success: boolean; submissions: ExamSubmission[] }>),
 
   // ── Marking ────────────────────────────────────────────────────────────────
+  // Admin: all attempts across all exams
+  getAllAttempts: (params?: { examId?: string; status?: string; className?: string }) => {
+    const q = params ? "?" + new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v]) => v)) as any).toString() : "";
+    return fetch(`${BASE}/api/exams/all-attempts${q}`, { headers: jsonHeaders() })
+      .then(handle<{ success: boolean; count: number; attempts: any[] }>);
+  },
+
   getSubmissions: (examId: string, status?: string) => {
     const q = status ? `?status=${status}` : "";
     return fetch(`${BASE}/api/exams/${examId}/submissions${q}`, { headers: jsonHeaders() })

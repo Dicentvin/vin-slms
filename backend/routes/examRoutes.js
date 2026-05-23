@@ -18,6 +18,7 @@ import {
   getSubmissions,
   getSubmission,
   markSubmission,
+  getAllAttempts,
 } from "../controllers/examController.js";
 
 const router = express.Router();
@@ -28,7 +29,8 @@ router.use(protect);
 // ── Exam CRUD ─────────────────────────────────────────────────────────────────
 router.post  ("/",               createExam);    // teacher/admin
 router.get   ("/",               getExams);      // all roles (filtered by role)
-router.get   ("/my-results",     getMyResults);  // student — list all my results
+router.get   ("/my-results",     getMyResults);   // student — list all my results
+router.get   ("/all-attempts",   getAllAttempts);  // admin/teacher — all submissions across all exams
 router.get   ("/:id",            getExam);
 router.put   ("/:id",            updateExam);    // teacher/admin
 router.delete("/:id",            deleteExam);    // teacher/admin

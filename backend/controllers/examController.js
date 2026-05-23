@@ -46,7 +46,7 @@ function studentClassFilter(user) {
     return { $in: [user.className, "All"] };
   }
   // Student has no class assigned — they can only see "All" exams
-  return { $in: ["All"] };
+  return "All";
 }
 
 // ── CREATE ────────────────────────────────────────────────────────────────────
@@ -115,10 +115,8 @@ export const getExams = async (req, res) => {
       if (subject)   filter.subject   = subject;
       if (type)      filter.type      = type;
     } else {
-      // Students see ALL exams for their class (active, draft, closed)
-      // so the dashboard can show upcoming/inactive exams with a lock message.
-      // Status filter is optional — if passed, honour it (e.g. status=active for stat card).
-      if (status) filter.status = status;
+      // Students always see active exams only, filtered to their class
+      filter.status    = "active";
       filter.className = studentClassFilter(req.user);
 
       // Allow optional extra filters from student (e.g. subject, type)
@@ -594,5 +592,60 @@ export const markSubmission = async (req, res) => {
   } catch (err) {
     console.error("markSubmission error:", err);
     return res.status(500).json({ success: false, message: "Failed to mark submission" });
+  }
+};
+
+// ── GET ALL ATTEMPTS ACROSS ALL EXAMS (admin/teacher) ─────────────────────────
+export const getAllAttempts = async (req, res) => {
+  try {
+    if (!isStaff(req.user)) {
+      return res.status(403).json({ success: false, message: "Not authorised" });
+    }
+
+    const { examId, status, className } = req.query;
+    const filter = {};
+    if (examId)    filter.examId = examId;
+    if (status)    filter.status = status;
+    if (className) filter.className = className;
+
+    // Only show submitted/marked (not in-progress)
+    filter.status = filter.status
+      ? filter.status
+      : { $in: ["submitted", "marked"] };
+
+    const submissions = await Submission.find(filter)
+      .populate("examId", "title subject type totalMarks passMark className duration")
+      .populate("studentId", "name email className role")
+      .sort({ submittedAt: -1 })
+      .lean();
+
+    const result = submissions.map(s => ({
+      _id:           s._id,
+      studentId:     s.studentId?._id ?? s.studentId,
+      studentName:   s.studentId?.name  ?? s.studentName ?? "Unknown",
+      studentEmail:  s.studentId?.email ?? "",
+      studentClass:  s.studentId?.className ?? s.className ?? "",
+      examId:        s.examId?._id  ?? s.examId,
+      examTitle:     s.examId?.title    ?? "",
+      examSubject:   s.examId?.subject  ?? "",
+      examType:      s.examId?.type     ?? "",
+      examClass:     s.examId?.className ?? "",
+      totalMarks:    s.examId?.totalMarks ?? 0,
+      passMark:      s.examId?.passMark   ?? 0,
+      mcqScore:      s.mcqScore,
+      theoryScore:   s.theoryScore,
+      totalScore:    s.totalScore,
+      percentage:    s.percentage,
+      passed:        s.percentage >= (s.examId?.passMark ?? 0),
+      status:        s.status,
+      timeTaken:     s.timeTaken,
+      submittedAt:   s.submittedAt,
+      attemptNumber: s.attemptNumber,
+    }));
+
+    return res.json({ success: true, count: result.length, attempts: result });
+  } catch (err) {
+    console.error("getAllAttempts error:", err);
+    return res.status(500).json({ success: false, message: "Failed to fetch attempts" });
   }
 };

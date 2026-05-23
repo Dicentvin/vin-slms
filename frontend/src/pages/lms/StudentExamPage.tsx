@@ -17,6 +17,7 @@ import { officialExams, type OfficialExam, type ExamSubmission } from "@/service
 import {
   Timer, Send, Loader2, AlertTriangle, CheckCircle2,
   User2, ChevronLeft, ChevronRight, Trophy, ArrowLeft,
+  XCircle, BookOpen, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -54,6 +55,149 @@ function PassportPhoto({ name, imageUrl }: { name: string; imageUrl?: string }) 
 // ─────────────────────────────────────────────────────────────────────────────
 // Result Screen shown after submission
 // ─────────────────────────────────────────────────────────────────────────────
+// Single question review card
+// ─────────────────────────────────────────────────────────────────────────────
+function ReviewCard({ question, answer, index }: { question: any; answer: any; index: number }) {
+  const [showExplanation, setShowExplanation] = useState(false);
+  const selected   = answer?.selectedOption ?? "";
+  const correct    = question.correctAnswer ?? "";
+  const isCorrect  = answer?.isCorrect ?? (selected === correct);
+  const isMCQ      = question.type === "mcq";
+
+  const optionStyle = (optId: string) => {
+    if (!isMCQ) return "";
+    if (optId === correct) return "border-[#3ecf8e] bg-[#3ecf8e]/10";
+    if (optId === selected && !isCorrect) return "border-red-400 bg-red-50 dark:bg-red-950/30";
+    return "border-border bg-card";
+  };
+
+  const optionBadge = (optId: string) => {
+    if (!isMCQ) return null;
+    if (optId === correct) return <CheckCircle2 className="h-4 w-4 text-[#3ecf8e] shrink-0" />;
+    if (optId === selected && !isCorrect) return <XCircle className="h-4 w-4 text-red-500 shrink-0" />;
+    return null;
+  };
+
+  return (
+    <div className={`rounded-2xl border-2 overflow-hidden ${
+      isMCQ
+        ? isCorrect ? "border-[#3ecf8e]/40" : "border-red-300 dark:border-red-800"
+        : "border-border"
+    }`}>
+      {/* Question header */}
+      <div className="flex items-start gap-3 p-4 border-b border-border bg-muted/20">
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-extrabold text-sm text-white shrink-0 ${
+          isMCQ
+            ? isCorrect ? "bg-[#3ecf8e]" : "bg-red-500"
+            : "bg-purple-500"
+        }`}>
+          {isMCQ
+            ? isCorrect
+              ? <CheckCircle2 className="h-4 w-4" />
+              : <XCircle className="h-4 w-4" />
+            : index + 1}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Q{index + 1}</span>
+            <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full text-white ${
+              isMCQ ? "bg-blue-500" : "bg-purple-500"
+            }`}>{question.type.toUpperCase()}</span>
+            <span className="text-[10px] text-muted-foreground font-medium">{question.marks} mark{question.marks > 1 ? "s" : ""}</span>
+            {isMCQ && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-auto ${
+                isCorrect
+                  ? "bg-[#3ecf8e]/15 text-[#3ecf8e]"
+                  : "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+              }`}>
+                {isCorrect ? `+${question.marks}` : "0"} / {question.marks}
+              </span>
+            )}
+          </div>
+          <p className="text-sm font-semibold text-foreground leading-relaxed">{question.text}</p>
+        </div>
+      </div>
+
+      {/* MCQ options */}
+      {isMCQ && question.options && (
+        <div className="p-4 space-y-2">
+          {question.options.map((opt: any) => (
+            <div
+              key={opt.id}
+              className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${optionStyle(opt.id)}`}
+            >
+              <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 ${
+                opt.id === correct
+                  ? "bg-[#3ecf8e] text-black"
+                  : opt.id === selected && !isCorrect
+                  ? "bg-red-500 text-white"
+                  : "bg-muted text-muted-foreground"
+              }`}>
+                {opt.id.toUpperCase()}
+              </div>
+              <span className={`text-sm flex-1 ${
+                opt.id === correct ? "font-semibold text-foreground" : "text-muted-foreground"
+              }`}>
+                {opt.text}
+              </span>
+              {opt.id === selected && opt.id !== correct && (
+                <span className="text-[10px] font-bold text-red-500 shrink-0">Your answer</span>
+              )}
+              {optionBadge(opt.id)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Theory — show student's answer */}
+      {!isMCQ && (
+        <div className="p-4">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Your Answer</p>
+          <div className="bg-muted/40 rounded-xl p-3 border border-border">
+            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+              {answer?.answerText?.trim() || <span className="italic text-muted-foreground">No answer provided</span>}
+            </p>
+          </div>
+          {question.sampleAnswer && (
+            <div className="mt-3 bg-[#3ecf8e]/5 border border-[#3ecf8e]/30 rounded-xl p-3">
+              <p className="text-xs font-bold text-[#3ecf8e] uppercase tracking-wide mb-1">Sample Answer</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{question.sampleAnswer}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Explanation toggle */}
+      {question.explanation && (
+        <div className="border-t border-border">
+          <button
+            onClick={() => setShowExplanation(s => !s)}
+            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+          >
+            <span className="flex items-center gap-1.5">
+              <BookOpen className="h-3.5 w-3.5" />
+              Explanation
+            </span>
+            {showExplanation
+              ? <ChevronUp className="h-3.5 w-3.5" />
+              : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+          {showExplanation && (
+            <div className="px-4 pb-4">
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-3">
+                <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">{question.explanation}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Result Screen — score summary + full question review
+// ─────────────────────────────────────────────────────────────────────────────
 function ResultScreen({
   result, examTitle, onBack,
 }: {
@@ -61,56 +205,129 @@ function ResultScreen({
   examTitle: string;
   onBack: () => void;
 }) {
-  const passed = result.percentage >= (result.passMark ?? 50);
+  const passed    = result.percentage >= (result.passMark ?? 50);
+  const questions = result.questions ?? [];   // full question list (with correct answers)
+  const answers   = result.answers   ?? [];   // student's answer records
+
+  // Build a fast lookup: questionId → answer record
+  const answerMap = Object.fromEntries(
+    answers.map((a: any) => [String(a.questionId), a])
+  );
+
+  const correct  = answers.filter((a: any) => a.isCorrect).length;
+  const wrong    = answers.filter((a: any) => a.type === "mcq" && !a.isCorrect && a.selectedOption).length;
+  const skipped  = answers.filter((a: any) => a.type === "mcq" && !a.selectedOption).length;
+  const hasReview = questions.length > 0;
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6">
-      <div className="max-w-sm w-full text-center space-y-6">
-        <div className={`w-28 h-28 rounded-full border-4 flex items-center justify-center mx-auto ${
-          passed ? "border-[#3ecf8e] bg-[#3ecf8e]/10" : "border-red-500 bg-red-500/10"
-        }`}>
-          <Trophy className={`h-14 w-14 ${passed ? "text-[#3ecf8e]" : "text-red-500"}`} />
-        </div>
-
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">
-            {result.hasTheory ? "Submitted — Awaiting Theory Marking" : "Exam Complete"}
-          </p>
-          <h1 className="text-4xl font-extrabold text-foreground">
-            {result.totalScore}
-            <span className="text-xl text-muted-foreground">/{result.maxScore}</span>
-          </h1>
-          {result.percentage !== undefined && (
-            <p className={`text-xl font-extrabold mt-1 ${passed ? "text-[#3ecf8e]" : "text-red-500"}`}>
-              {result.percentage}%
-            </p>
-          )}
-          <p className="text-sm text-muted-foreground mt-2">{examTitle}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { label: "MCQ Score",    value: result.mcqScore    ?? "—" },
-            { label: "Theory Score", value: result.hasTheory ? "Pending" : (result.theoryScore ?? "—") },
-          ].map(s => (
-            <div key={s.label} className="bg-muted/60 rounded-xl p-3">
-              <p className="text-lg font-extrabold text-foreground">{s.value}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
+    <div className="min-h-screen bg-background">
+      {/* ── Score Summary Card ── */}
+      <div className="sticky top-0 z-10 bg-card border-b border-border shadow-sm">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Trophy */}
+            <div className={`w-16 h-16 rounded-2xl border-2 flex items-center justify-center shrink-0 ${
+              passed ? "border-[#3ecf8e] bg-[#3ecf8e]/10" : "border-red-500 bg-red-500/10"
+            }`}>
+              <Trophy className={`h-8 w-8 ${passed ? "text-[#3ecf8e]" : "text-red-500"}`} />
             </div>
-          ))}
-        </div>
 
-        {result.hasTheory && (
-          <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3 text-left">
-            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 dark:text-amber-400">
-              Your theory answers are being marked by your teacher. Check back later for your full score.
+            {/* Score */}
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                {result.hasTheory ? "Submitted — Awaiting Theory Marking" : "Exam Complete"}
+              </p>
+              <div className="flex items-baseline gap-2 flex-wrap mt-0.5">
+                <span className="text-3xl font-extrabold text-foreground">
+                  {result.totalScore}
+                  <span className="text-lg font-normal text-muted-foreground">/{result.maxScore}</span>
+                </span>
+                <span className={`text-xl font-extrabold ${passed ? "text-[#3ecf8e]" : "text-red-500"}`}>
+                  {result.percentage}%
+                </span>
+                <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${
+                  passed
+                    ? "bg-[#3ecf8e]/15 text-[#3ecf8e]"
+                    : "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+                }`}>
+                  {passed ? "PASSED" : "FAILED"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">{examTitle}</p>
+            </div>
+
+            {/* Back button */}
+            <Button
+              onClick={onBack}
+              className="bg-[#3ecf8e] hover:bg-[#34b27b] text-black font-bold gap-1.5 shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" /> Dashboard
+            </Button>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-4 gap-2 mt-3">
+            {[
+              { label: "MCQ Score",  value: result.mcqScore ?? "—",              color: "text-foreground" },
+              { label: "Correct",    value: correct,                              color: "text-[#3ecf8e]" },
+              { label: "Wrong",      value: wrong,                                color: "text-red-500" },
+              { label: "Skipped",    value: skipped,                              color: "text-amber-500" },
+            ].map(s => (
+              <div key={s.label} className="bg-muted/50 rounded-xl p-2.5 text-center">
+                <p className={`text-lg font-extrabold ${s.color}`}>{s.value}</p>
+                <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {result.hasTheory && (
+            <div className="flex items-start gap-2 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-3 mt-3">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Your theory answers are being marked by your teacher. Check back later for your full score.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Question Review ── */}
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        {hasReview ? (
+          <>
+            <div className="flex items-center gap-2 mb-2">
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-bold text-foreground">Full Review</p>
+              <span className="text-xs text-muted-foreground">— click "Explanation" on each question to learn more</span>
+            </div>
+            {questions.map((q: any, i: number) => (
+              <ReviewCard
+                key={q._id ?? i}
+                question={q}
+                answer={answerMap[String(q._id)]}
+                index={i}
+              />
+            ))}
+            <Button
+              onClick={onBack}
+              className="w-full bg-[#3ecf8e] hover:bg-[#34b27b] text-black font-bold gap-2 mt-4"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+            </Button>
+          </>
+        ) : (
+          <div className="text-center py-16 space-y-3">
+            <BookOpen className="h-12 w-12 text-muted-foreground/30 mx-auto" />
+            <p className="text-sm font-semibold text-muted-foreground">
+              {result.hasTheory
+                ? "Review will be available after theory answers are marked."
+                : "Question review is not enabled for this exam."}
             </p>
+            <Button onClick={onBack} className="bg-[#3ecf8e] hover:bg-[#34b27b] text-black font-bold gap-2">
+              <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+            </Button>
           </div>
         )}
-
-        <Button onClick={onBack} className="w-full bg-[#3ecf8e] hover:bg-[#34b27b] text-black font-bold gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-        </Button>
       </div>
     </div>
   );

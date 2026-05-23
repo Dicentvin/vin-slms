@@ -7,7 +7,7 @@ import {
   BookMarked, Settings, Upload, Zap, GraduationCap,
   ArrowRight, Loader2, School, Calendar, Trash2,
   UserCheck, Shield, BarChart3, TrendingUp, Eye, ExternalLink,
-  PlayCircle, PauseCircle, ClipboardList,
+  PlayCircle, PauseCircle, ClipboardList, Trophy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -127,6 +127,7 @@ export default function AdminDashboard() {
   const [allTeachers,     setAllTeachers]     = useState<LmsUser[]>([]);
   const [allParents,      setAllParents]      = useState<LmsUser[]>([]);
   const [allExams,        setAllExams]        = useState<OfficialExam[]>([]);
+  const [allAttempts,     setAllAttempts]     = useState<any[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [busyDoc,  setBusyDoc]  = useState<string | null>(null);
   const [busyUser,   setBusyUser]   = useState<string | null>(null);
@@ -138,13 +139,14 @@ export default function AdminDashboard() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [docsRes, approvedRes, studentsRes, teachersRes, parentsRes, examRes] = await Promise.all([
+      const [docsRes, approvedRes, studentsRes, teachersRes, parentsRes, examRes, attemptsRes] = await Promise.all([
         lmsDocs.listPending().catch(() => ({ documents: [] })),
         lmsDocs.list().catch(() => ({ documents: [] })),
         lmsUsers.list({ role: "student" }).catch(err => { toast.error("Failed to load students: " + (err?.message ?? "unknown error")); return { users: [] }; }),
         lmsUsers.list({ role: "teacher" }).catch(err => { toast.error("Failed to load teachers: " + (err?.message ?? "unknown error")); return { users: [] }; }),
         lmsUsers.list({ role: "parent"  }).catch(err => { toast.error("Failed to load parents: "  + (err?.message ?? "unknown error")); return { users: [] }; }),
         officialExams.list().catch(() => ({ exams: [] })),
+        officialExams.getAllAttempts().catch(() => ({ attempts: [] })),
       ]);
       setPendingDocs(docsRes.documents ?? []);
       setApprovedDocs((approvedRes.documents ?? []).filter((d: LmsDocument) => d.approvalStatus === "approved"));
@@ -155,6 +157,7 @@ export default function AdminDashboard() {
       setAllTeachers(tea);
       setAllParents(par);
       setAllExams(examRes.exams ?? []);
+      setAllAttempts(attemptsRes.attempts ?? []);
       setPendingStudents(stu.filter(s => s.approvalStatus === "pending"));
       setPendingTeachers(tea.filter(t => t.approvalStatus === "pending"));
       setPendingParents(par.filter(p => p.approvalStatus === "pending"));
@@ -667,6 +670,116 @@ export default function AdminDashboard() {
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Exam Attempts ────────────────────────────────────────────────── */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
+        <div className="p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+              <Trophy className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-foreground">Exam Attempts</h3>
+              <p className="text-xs text-muted-foreground">All submitted attempts with scores and candidates</p>
+            </div>
+            <span className="ml-auto text-xs text-muted-foreground">{allAttempts.length} attempt{allAttempts.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-amber-500" /></div>
+          ) : allAttempts.length === 0 ? (
+            <div className="text-center py-10 border border-dashed border-border rounded-xl bg-muted/20">
+              <Trophy className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+              <p className="text-sm font-semibold text-muted-foreground">No attempts yet.</p>
+              <p className="text-xs text-muted-foreground mt-1">Attempts will appear here once students submit exams.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Candidate</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Exam</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Class</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Score</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">%</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Result</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Date</th>
+                    <th className="text-left text-xs font-bold text-muted-foreground pb-2">Time Taken</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {allAttempts.map(attempt => {
+                    const passed = attempt.passed;
+                    const date = attempt.submittedAt ? new Date(attempt.submittedAt) : null;
+                    const dateStr = date
+                      ? date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                      : "—";
+                    const timeStr = date
+                      ? date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
+                      : "";
+                    const mins = Math.floor((attempt.timeTaken ?? 0) / 60);
+                    const secs = (attempt.timeTaken ?? 0) % 60;
+                    const taken = attempt.timeTaken ? `${mins}m ${secs}s` : "—";
+                    return (
+                      <tr key={attempt._id} className="hover:bg-muted/30 transition-colors">
+                        <td className="py-3 pr-4">
+                          <div>
+                            <p className="font-semibold text-foreground text-sm leading-tight">{attempt.studentName}</p>
+                            <p className="text-xs text-muted-foreground">{attempt.studentEmail}</p>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div>
+                            <p className="font-medium text-foreground text-xs leading-tight max-w-[160px] truncate">{attempt.examTitle}</p>
+                            <p className="text-[10px] text-muted-foreground">{attempt.examSubject}</p>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
+                            {attempt.studentClass || attempt.examClass || "—"}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className="font-bold text-foreground">
+                            {attempt.totalScore}
+                            <span className="text-muted-foreground font-normal">/{attempt.totalMarks}</span>
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className={`font-extrabold text-sm ${passed ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                            {attempt.percentage}%
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-fit ${
+                            passed
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${passed ? "bg-emerald-500" : "bg-red-500"}`} />
+                            {passed ? "Passed" : "Failed"}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <div>
+                            <p className="text-xs text-foreground font-medium">{dateStr}</p>
+                            <p className="text-[10px] text-muted-foreground">{timeStr}</p>
+                          </div>
+                        </td>
+                        <td className="py-3">
+                          <span className="text-xs text-muted-foreground font-medium">{taken}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
