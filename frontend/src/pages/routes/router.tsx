@@ -2,6 +2,9 @@ import { createBrowserRouter, isRouteErrorResponse, useRouteError } from "react-
 import Home               from "@/pages/Home";
 import Login              from "@/pages/Login";
 import Register           from "@/pages/Register";
+import ForgotPassword     from "@/pages/ForgotPassword";
+import ResetPassword      from "@/pages/ResetPassword";
+import VerifyEmail        from "@/pages/VerifyEmail";
 import PrivateRoutes      from "@/pages/routes/PrivateRoutes";
 import Dashboard          from "@/pages/Dashboard";
 import AcademicYear       from "@/pages/settings/academic-year";
@@ -95,8 +98,11 @@ export const router = createBrowserRouter([
     errorElement: <RootErrorBoundary />,
     children: [
       { index: true, element: <Home /> },
-      { path: "login",    element: <Login /> },
-      { path: "register", element: <Register /> },
+      { path: "login",            element: <Login /> },
+      { path: "register",         element: <Register /> },
+      { path: "forgot-password",  element: <ForgotPassword /> },
+      { path: "reset-password",   element: <ResetPassword /> },
+      { path: "verify-email",     element: <VerifyEmail /> },
       {
         element: <PrivateRoutes />,
         errorElement: <RootErrorBoundary />,

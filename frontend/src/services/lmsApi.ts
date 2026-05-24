@@ -63,6 +63,29 @@ export const lmsAuth = {
   me: () =>
     fetch(`${BASE}/api/auth/me`, { headers: authHeaders() })
       .then(handle<{ success: boolean; user: LmsUser }>),
+
+  // ── Password reset ────────────────────────────────────────────────────────
+  forgotPassword: (email: string) =>
+    fetch(`${BASE}/api/auth/forgot-password`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }).then(handle<{ success: boolean; message: string }>),
+
+  resetPassword: (token: string, id: string, password: string) =>
+    fetch(`${BASE}/api/auth/reset-password`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, id, password }),
+    }).then(handle<{ success: boolean; message: string }>),
+
+  // ── Email verification ────────────────────────────────────────────────────
+  sendVerification: () =>
+    fetch(`${BASE}/api/auth/send-verification`, {
+      method: "POST", headers: authHeaders(),
+    }).then(handle<{ success: boolean; message: string }>),
+
+  verifyEmail: (token: string, id: string) =>
+    fetch(`${BASE}/api/auth/verify-email?token=${encodeURIComponent(token)}&id=${id}`)
+      .then(handle<{ success: boolean; message: string }>),
 };
 
 // ─── Users (admin) ────────────────────────────────────────────────────────────

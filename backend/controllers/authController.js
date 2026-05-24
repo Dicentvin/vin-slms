@@ -5,15 +5,16 @@ const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || "4d" });
 
 const safeUser = (user) => ({
-  _id:            user._id,
-  name:           user.name,
-  email:          user.email,
-  role:           user.role,
-  className:      user.className,
-  phone:          user.phone ?? "",
-  dateOfBirth:    user.dateOfBirth ?? "",
-  image:          user.image ?? "",
-  approvalStatus: user.approvalStatus,
+  _id:             user._id,
+  name:            user.name,
+  email:           user.email,
+  role:            user.role,
+  className:       user.className,
+  phone:           user.phone ?? "",
+  dateOfBirth:     user.dateOfBirth ?? "",
+  image:           user.image ?? "",
+  approvalStatus:  user.approvalStatus,
+  isEmailVerified: user.isEmailVerified ?? false,
 });
 
 // POST /api/auth/register
@@ -100,4 +101,141 @@ export const getMe = async (req, res) => {
     success: true,
     user: safeUser(req.user),
   });
+};
+
+import crypto from "crypto";
+import { sendEmail, emailTemplates } from "../utils/sendEmail.js";
+
+const CLIENT = process.env.CLIENT_URL || "http://localhost:5173";
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function makeToken() {
+  const raw   = crypto.randomBytes(32).toString("hex");
+  const hashed = crypto.createHash("sha256").update(raw).digest("hex");
+  return { raw, hashed };
+}
+
+// POST /api/auth/send-verification
+export const sendVerification = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select("+emailVerifyToken +emailVerifyExpires");
+
+    if (user.isEmailVerified) {
+      return res.status(400).json({ success: false, message: "Email already verified" });
+    }
+
+    const { raw, hashed } = makeToken();
+    user.emailVerifyToken   = hashed;
+    user.emailVerifyExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 h
+    await user.save({ validateBeforeSave: false });
+
+    const url = `${CLIENT}/verify-email?token=${raw}&id=${user._id}`;
+    const { subject, html } = emailTemplates.verifyEmail({ name: user.name, url });
+    await sendEmail({ to: user.email, subject, html });
+
+    return res.json({ success: true, message: "Verification email sent — check your inbox." });
+  } catch (err) {
+    console.error("sendVerification error:", err);
+    return res.status(500).json({ success: false, message: "Failed to send verification email" });
+  }
+};
+
+// GET /api/auth/verify-email?token=RAW&id=USERID
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token, id } = req.query;
+    if (!token || !id) {
+      return res.status(400).json({ success: false, message: "Invalid verification link" });
+    }
+
+    const hashed = crypto.createHash("sha256").update(token).digest("hex");
+    const user   = await User.findOne({
+      _id: id,
+      emailVerifyToken:   hashed,
+      emailVerifyExpires: { $gt: Date.now() },
+    }).select("+emailVerifyToken +emailVerifyExpires");
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Verification link is invalid or has expired" });
+    }
+
+    user.isEmailVerified    = true;
+    user.emailVerifyToken   = undefined;
+    user.emailVerifyExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return res.json({ success: true, message: "Email verified successfully. You can now log in." });
+  } catch (err) {
+    console.error("verifyEmail error:", err);
+    return res.status(500).json({ success: false, message: "Email verification failed" });
+  }
+};
+
+// POST /api/auth/forgot-password
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    // Always return 200 to prevent email enumeration
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) {
+      return res.json({ success: true, message: "If that email is registered, you'll receive a reset link shortly." });
+    }
+
+    const { raw, hashed } = makeToken();
+    user.passwordResetToken   = hashed;
+    user.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 h
+    await user.save({ validateBeforeSave: false });
+
+    const url = `${CLIENT}/reset-password?token=${raw}&id=${user._id}`;
+    const { subject, html } = emailTemplates.resetPassword({ name: user.name, url });
+    await sendEmail({ to: user.email, subject, html });
+
+    return res.json({ success: true, message: "If that email is registered, you'll receive a reset link shortly." });
+  } catch (err) {
+    console.error("forgotPassword error:", err);
+    return res.status(500).json({ success: false, message: "Failed to send reset email. Please try again." });
+  }
+};
+
+// POST /api/auth/reset-password
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, id, password } = req.body;
+    if (!token || !id || !password) {
+      return res.status(400).json({ success: false, message: "All fields are required" });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters" });
+    }
+
+    const hashed = crypto.createHash("sha256").update(token).digest("hex");
+    const user   = await User.findOne({
+      _id: id,
+      passwordResetToken:   hashed,
+      passwordResetExpires: { $gt: Date.now() },
+    }).select("+password +passwordResetToken +passwordResetExpires");
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Reset link is invalid or has expired" });
+    }
+
+    user.password             = password;
+    user.passwordResetToken   = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    // Notify user of password change
+    const { subject, html } = emailTemplates.passwordChanged({ name: user.name });
+    sendEmail({ to: user.email, subject, html }).catch(console.error);
+
+    return res.json({ success: true, message: "Password reset successfully. You can now log in." });
+  } catch (err) {
+    console.error("resetPassword error:", err);
+    return res.status(500).json({ success: false, message: "Password reset failed. Please try again." });
+  }
 };

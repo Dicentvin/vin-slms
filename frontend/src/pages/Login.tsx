@@ -50,12 +50,13 @@ export default function Login() {
       setLmsToken(token);
 
       const loggedInUser = {
-        _id:            backendUser._id,
-        name:           backendUser.name,
-        email:          backendUser.email,
-        role:           (backendUser.role ?? "student") as any,
-        className:      (backendUser as any).className ?? "",
-        approvalStatus: (backendUser.approvalStatus ?? "pending") as any,
+        _id:             backendUser._id,
+        name:            backendUser.name,
+        email:           backendUser.email,
+        role:            (backendUser.role ?? "student") as any,
+        className:       (backendUser as any).className ?? "",
+        approvalStatus:  (backendUser.approvalStatus ?? "pending") as any,
+        isEmailVerified: (backendUser as any).isEmailVerified ?? false,
       };
 
       localStorage.setItem("edunexus_user", JSON.stringify(loggedInUser));
@@ -249,7 +250,15 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
+                    <Link
+                      to="/forgot-password"
+                      className="text-xs text-[#3ecf8e] font-semibold hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                   <div className="relative">
                     <Input
                       id="password" type={showPass ? "text" : "password"} placeholder="Your password"

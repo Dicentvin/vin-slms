@@ -50,14 +50,24 @@ const userSchema = new mongoose.Schema(
       enum: ["pending", "approved", "rejected"],
       default: "pending",
     },
+
+    // ── Email verification ────────────────────────────────────────────────
+    isEmailVerified: { type: Boolean, default: false },
+    emailVerifyToken:   { type: String, select: false },
+    emailVerifyExpires: { type: Date,   select: false },
+
+    // ── Password reset ────────────────────────────────────────────────────
+    passwordResetToken:   { type: String, select: false },
+    passwordResetExpires: { type: Date,   select: false },
   },
   { timestamps: true }
 );
 
-// Admin accounts are auto-approved
+// Admin accounts are auto-approved and email-verified
 userSchema.pre("save", async function (next) {
   if (this.isNew && this.role === "admin") {
-    this.approvalStatus = "approved";
+    this.approvalStatus  = "approved";
+    this.isEmailVerified = true;
   }
   if (!this.isModified("password")) return next();
   this.password = await bcrypt.hash(this.password, 10);

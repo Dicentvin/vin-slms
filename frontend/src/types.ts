@@ -20,6 +20,7 @@ export interface user {
   approvalStatus?: ApprovalStatus;
   studentClass?: Class;
   teacherSubjects?: subject[];
+  isEmailVerified?: boolean;
 }
 
 export interface academicYear {

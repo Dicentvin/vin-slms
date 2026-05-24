@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/AuthProvider";
 import { lmsDocs, officialExams, type LmsDocument, type OfficialExam } from "@/services/lmsApi";
+import EmailVerificationBanner from "@/components/global/EmailVerificationBanner";
 import {
   BookMarked, FileText, Trophy, Upload, ArrowRight,
   Atom, FlaskConical, Dna, Sigma, Clock,
@@ -76,6 +77,9 @@ export default function StudentDashboard() {
 
   return (
     <div className="flex-1 space-y-6 p-6 page-fade">
+
+      {/* ── Email verification banner ──────────────────────── */}
+      <EmailVerificationBanner />
 
       {/* ── Hero banner ───────────────────────────────────── */}
       <div className="relative overflow-hidden rounded-2xl gradient-hero p-6 text-white">
