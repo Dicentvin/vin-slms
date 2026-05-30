@@ -144,7 +144,7 @@ export const updateUser = async (req, res) => {
   } catch (err) {
     console.error("updateUser error:", err);
     if (err.name === "ValidationError") {
-      const message = Object.values(err.errors).map((e: any) => e.message).join(", ");
+      const message = Object.values(err.errors).map(e => e.message).join(", ");
       return res.status(400).json({ success: false, message });
     }
     return res.status(500).json({ success: false, message: "Failed to update user" });
