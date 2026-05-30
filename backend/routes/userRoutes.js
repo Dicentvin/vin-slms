@@ -1,5 +1,6 @@
-import express from "express";
-import protect  from "../middleware/auth.js";
+import express    from "express";
+import protect    from "../middleware/auth.js";
+import { adminOnly } from "../middleware/adminOnly.js";
 import {
   getUsers,
   getUserStats,
@@ -10,13 +11,6 @@ import {
 } from "../controllers/userController.js";
 
 const router = express.Router();
-
-const adminOnly = (req, res, next) => {
-  if (req.user?.role !== "admin") {
-    return res.status(403).json({ success: false, message: "Admin access required" });
-  }
-  next();
-};
 
 router.get   ("/stats",          protect, adminOnly, getUserStats);
 router.patch ("/me",             protect, updateMe);              // own profile — must be before /:id

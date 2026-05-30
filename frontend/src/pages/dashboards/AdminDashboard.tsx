@@ -213,6 +213,11 @@ function UserRow({
               {u.className}
             </span>
           )}
+          {u.role === "mbbs" && (
+            <span className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-extrabold px-1.5 py-0.5 rounded-full">
+              MBBS
+            </span>
+          )}
           {!u.image && (
             <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">⚠ No photo</span>
           )}
@@ -408,7 +413,7 @@ export default function AdminDashboard() {
       {/* ── Coloured Stat Cards ─────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Total Students" value={allStudents.length}
+          label="Total Students & MBBS" value={allStudents.length}
           subLabel={`${approvedStudents} approved`}
           icon={<Users className="h-5 w-5 text-white" />}
           gradient="gradient-navy"
@@ -515,7 +520,7 @@ export default function AdminDashboard() {
                 <div className="w-6 h-6 rounded-md bg-[#3ecf8e] flex items-center justify-center">
                   <Users className="h-3.5 w-3.5 text-black" />
                 </div>
-                <h4 className="text-sm font-bold text-foreground">Students</h4>
+                <h4 className="text-sm font-bold text-foreground">Students & MBBS</h4>
                 <span className="text-xs text-muted-foreground">
                   {(activeTab === "pending" ? pendingStudents : allStudents).length} total
                 </span>

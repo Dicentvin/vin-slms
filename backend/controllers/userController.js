@@ -6,9 +6,9 @@ export const getUsers = async (req, res) => {
     const { role, status } = req.query;
     const filter = {};
 
-    // If role not specified, return all non-admin users
+    // If role not specified, return all non-admin users (including mbbs)
     if (role) filter.role = role;
-    else      filter.role = { $in: ["student", "teacher", "parent"] };
+    else      filter.role = { $in: ["student", "teacher", "parent", "mbbs"] };
 
     if (status) filter.approvalStatus = status;
 
@@ -26,23 +26,26 @@ export const getUsers = async (req, res) => {
 // GET /api/users/stats — returns counts per role and status (admin only)
 export const getUserStats = async (req, res) => {
   try {
-    const [students, teachers, parents] = await Promise.all([
+    const [students, teachers, parents, mbbsStudents] = await Promise.all([
       User.countDocuments({ role: "student" }),
       User.countDocuments({ role: "teacher" }),
       User.countDocuments({ role: "parent"  }),
+      User.countDocuments({ role: "mbbs"    }),
     ]);
-    const [pendingStudents, pendingTeachers, pendingParents] = await Promise.all([
+    const [pendingStudents, pendingTeachers, pendingParents, pendingMbbs] = await Promise.all([
       User.countDocuments({ role: "student", approvalStatus: "pending" }),
       User.countDocuments({ role: "teacher", approvalStatus: "pending" }),
       User.countDocuments({ role: "parent",  approvalStatus: "pending" }),
+      User.countDocuments({ role: "mbbs",    approvalStatus: "pending" }),
     ]);
     return res.json({
       success: true,
       stats: {
-        students: { total: students, pending: pendingStudents },
-        teachers: { total: teachers, pending: pendingTeachers },
-        parents:  { total: parents,  pending: pendingParents  },
-        totalPending: pendingStudents + pendingTeachers + pendingParents,
+        students:     { total: students,     pending: pendingStudents },
+        teachers:     { total: teachers,     pending: pendingTeachers },
+        parents:      { total: parents,      pending: pendingParents  },
+        mbbsStudents: { total: mbbsStudents, pending: pendingMbbs     },
+        totalPending: pendingStudents + pendingTeachers + pendingParents + pendingMbbs,
       },
     });
   } catch (err) {
@@ -102,7 +105,22 @@ export const updateMe = async (req, res) => {
   }
 };
 
-// PATCH /api/users/:id  — admin updates any user's basic fields
+// DELETE /api/users/:id  (admin only)
+export const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    if (user.role === "admin") {
+      return res.status(403).json({ success: false, message: "Cannot delete admin account" });
+    }
+    await user.deleteOne();
+    return res.json({ success: true, message: "User deleted" });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "Failed to delete user" });
+  }
+};
+
+// PATCH /api/users/:id  — admin edits any user's basic fields
 export const updateUser = async (req, res) => {
   try {
     const allowed = ["name", "email", "className", "phone", "dateOfBirth", "image"];
@@ -126,24 +144,9 @@ export const updateUser = async (req, res) => {
   } catch (err) {
     console.error("updateUser error:", err);
     if (err.name === "ValidationError") {
-      const message = Object.values(err.errors).map(e => e.message).join(", ");
+      const message = Object.values(err.errors).map((e: any) => e.message).join(", ");
       return res.status(400).json({ success: false, message });
     }
     return res.status(500).json({ success: false, message: "Failed to update user" });
-  }
-};
-
-// DELETE /api/users/:id  (admin only)
-export const deleteUser = async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-    if (user.role === "admin") {
-      return res.status(403).json({ success: false, message: "Cannot delete admin account" });
-    }
-    await user.deleteOne();
-    return res.json({ success: true, message: "User deleted" });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Failed to delete user" });
   }
 };
