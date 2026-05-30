@@ -41,7 +41,7 @@ export default function MBBSDashboard() {
       .then(r => setExams(r.exams ?? []))
       .catch(() => {})
       .finally(() => setExamsLoading(false));
-    lmsDocs.list()
+    lmsDocs.listShared({ class: "mbbs" })
       .then(r => setDocCount((r.documents ?? []).length))
       .catch(() => {});
   }, []);
@@ -85,7 +85,7 @@ export default function MBBSDashboard() {
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: "Active Exams",  value: examsLoading ? "…" : activeExams.length, color: "text-[#3ecf8e]" },
-              { label: "Study Notes",   value: docCount || "—",                           color: "text-blue-400"  },
+              { label: "MBBS Notes",    value: docCount || "—",                           color: "text-blue-400"  },
               { label: "Courses",       value: MBBS_COURSES.length,                       color: "text-amber-400" },
               { label: "Your Level",    value: user?.className || "—",                    color: "text-white"     },
             ].map(s => (

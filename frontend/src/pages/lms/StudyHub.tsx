@@ -19,7 +19,7 @@ import { lmsDocs, type LmsDocument } from "@/services/lmsApi";
 import { useAuth } from "@/hooks/AuthProvider";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const CLASSES  = ["SS1", "SS2", "SS3", "WAEC", "JAMB"];
+const CLASSES  = ["SS1", "SS2", "SS3", "WAEC", "JAMB", "mbbs"];
 const TERMS    = [
   { value: "1", label: "First Term"  },
   { value: "2", label: "Second Term" },
@@ -38,6 +38,7 @@ const CLASS_COLOR: Record<string, string> = {
   SS3:  "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300",
   WAEC: "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
   JAMB: "bg-red-100 text-red-600 dark:bg-red-950/30 dark:text-red-400",
+  mbbs: "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400",
 };
 
 const APPROVAL_BADGE = (status?: string) => {
@@ -376,7 +377,7 @@ function UploadModal({ open, onClose, onSuccess, defaultClass, defaultTerm, role
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Class</label>
               <Select value={cls} onValueChange={setCls}>
                 <SelectTrigger className="mt-1 h-9 text-xs"><SelectValue placeholder="Class" /></SelectTrigger>
-                <SelectContent>{CLASSES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent>{CLASSES.map(c => <SelectItem key={c} value={c}>{c === "mbbs" ? "MBBS (Medical)" : c}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
@@ -422,7 +423,8 @@ export default function StudyHub() {
   const [uploadOpen, setUploadOpen] = useState(false);
 
   const [search,      setSearch]      = useState(searchParams.get("q")     ?? "");
-  const [filterClass, setFilterClass] = useState(searchParams.get("class") ?? "");
+  const mbbsDefault = user?.role === "mbbs" ? "mbbs" : "";
+  const [filterClass, setFilterClass] = useState(searchParams.get("class") ?? mbbsDefault);
   const [filterTerm,  setFilterTerm]  = useState(searchParams.get("term")  ?? "");
 
   const openUpload = searchParams.get("upload") === "true";
@@ -537,15 +539,22 @@ export default function StudyHub() {
             <Input value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search by title or subject…" className="pl-9 h-10" />
           </div>
-          <Select value={filterClass || "all"} onValueChange={v => setFilterClass(v === "all" ? "" : v)}>
-            <SelectTrigger className="h-10 w-full sm:w-36">
-              <SelectValue placeholder="All Classes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Classes</SelectItem>
-              {CLASSES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          {/* Class filter — mbbs users are locked to mbbs, others can freely pick */}
+          {user?.role === "mbbs" ? (
+            <div className="h-10 px-3 flex items-center rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 text-sm font-semibold shrink-0 gap-2">
+              <span className="text-xs">🏥</span> MBBS Materials
+            </div>
+          ) : (
+            <Select value={filterClass || "all"} onValueChange={v => setFilterClass(v === "all" ? "" : v)}>
+              <SelectTrigger className="h-10 w-full sm:w-36">
+                <SelectValue placeholder="All Classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                {CLASSES.map(c => <SelectItem key={c} value={c}>{c === "mbbs" ? "MBBS (Medical)" : c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          )}
           <Select value={filterTerm || "all"} onValueChange={v => setFilterTerm(v === "all" ? "" : v)}>
             <SelectTrigger className="h-10 w-full sm:w-40">
               <SelectValue placeholder="All Terms" />
