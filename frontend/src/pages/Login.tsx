@@ -5,7 +5,7 @@ import { lmsAuth } from "@/services/lmsApi";
 import {
   GraduationCap, Eye, EyeOff, Loader2,
   BookOpen, Brain, Zap, Shield, Moon, Sun,
-  ClipboardList, Users, ChevronRight,
+  ClipboardList, Users, ChevronRight, Stethoscope,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTheme } from "@/components/provider/theme";
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const ALL_CLASSES = ["SS1", "SS2", "SS3", "WAEC", "JAMB"];
+const MBBS_CLASSES = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6"];
 
 const FEATURES = [
   { icon: BookOpen,      label: "Study Notes & Past Papers"  },
@@ -21,6 +22,7 @@ const FEATURES = [
   { icon: Zap,           label: "WAEC & JAMB Practice"       },
   { icon: ClipboardList, label: "Official Exam Portal"       },
   { icon: Shield,        label: "Admin-Secured Access"        },
+  { icon: Stethoscope,   label: "MBBS Medical Course Hub"     },
 ];
 
 type LoginMode = "student" | "candidate";
@@ -115,7 +117,7 @@ export default function Login() {
                 <span className="text-[#3ecf8e]">Study Portal.</span>
               </h1>
               <p className="text-white/60 mt-3 text-sm leading-relaxed max-w-xs">
-                AI-powered tools built for SS1 to JAMB students. Upload notes, chat with AI, and ace your exams.
+                AI-powered tools for SS1, WAEC, JAMB and MBBS medical students. Upload notes, chat with AI, and ace every exam.
               </p>
             </div>
 
@@ -138,6 +140,9 @@ export default function Login() {
                     {c}
                   </span>
                 ))}
+                <span className="bg-blue-500/15 border border-blue-400/30 text-blue-400 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                  <Stethoscope className="h-3 w-3" /> MBBS
+                </span>
               </div>
             </div>
           </div>
@@ -174,6 +179,7 @@ export default function Login() {
             </div>
 
             {/* ── Mode selector ──────────────────────────────── */}
+            {/* Note: MBBS students log in via Student/Staff tab */}
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -188,8 +194,8 @@ export default function Login() {
                   <Users className={`h-5 w-5 ${mode === "student" ? "text-white" : "text-muted-foreground"}`} />
                 </div>
                 <div className="text-center">
-                  <p className={`text-sm font-bold ${mode === "student" ? "text-foreground" : "text-muted-foreground"}`}>Student / Staff</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Study Hub & AI Tools</p>
+                  <p className={`text-sm font-bold ${mode === "student" ? "text-foreground" : "text-muted-foreground"}`}>Student / MBBS / Staff</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Study Hub, AI Tools & MBBS</p>
                 </div>
                 {mode === "student" && (
                   <div className="w-2 h-2 rounded-full bg-[#3ecf8e]" />
@@ -228,6 +234,14 @@ export default function Login() {
                     You'll be taken directly to the Exam Portal to take official MCQ and Theory exams.
                   </p>
                 </div>
+              </div>
+            )}
+            {mode === "student" && (
+              <div className="flex items-center gap-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl px-3 py-2.5">
+                <Stethoscope className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  <strong>MBBS students</strong> — sign in here. You'll be taken to your Medical dashboard automatically.
+                </p>
               </div>
             )}
 

@@ -7,7 +7,7 @@ import {
   BookMarked, Settings, Upload, Zap, GraduationCap,
   ArrowRight, Loader2, School, Calendar, Trash2,
   UserCheck, Shield, BarChart3, TrendingUp, Eye, ExternalLink,
-  PlayCircle, PauseCircle, ClipboardList, Trophy,
+  PlayCircle, PauseCircle, ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -47,32 +47,157 @@ function StatCard({
   );
 }
 
-// ─── User Row ─────────────────────────────────────────────────────────────────
-function UserRow({
-  u, onApprove, onReject, onDelete, busy,
-}: {
+// ─── Profile Preview Modal ────────────────────────────────────────────────────
+function ProfileModal({ u, onClose, onApprove, onReject, onDelete, busy }: {
   u: LmsUser;
+  onClose: () => void;
   onApprove: (id: string) => void;
   onReject:  (id: string) => void;
   onDelete:  (id: string) => void;
   busy: string | null;
 }) {
-  const initials = u.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  const initials = u.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+  const statusStyle =
+    u.approvalStatus === "approved" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+    u.approvalStatus === "rejected"  ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400" :
+    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden" onClick={e => e.stopPropagation()}>
+        {/* Header stripe */}
+        <div className="h-20 bg-gradient-to-r from-[#3ecf8e] to-[#10b981] relative">
+          <button onClick={onClose} className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/20 text-white flex items-center justify-center hover:bg-black/40">
+            <XCircle className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Avatar */}
+        <div className="flex justify-center -mt-10 px-6">
+          {u.image ? (
+            <img src={u.image} alt={u.name} className="w-20 h-20 rounded-full border-4 border-card object-cover shadow-lg" />
+          ) : (
+            <div className="w-20 h-20 rounded-full border-4 border-card bg-[#3ecf8e] text-black font-extrabold text-2xl flex items-center justify-center shadow-lg">
+              {initials}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 pb-6 pt-3 space-y-4">
+          {/* Name + status */}
+          <div className="text-center">
+            <h3 className="text-lg font-extrabold text-foreground">{u.name}</h3>
+            <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
+              <span className="text-xs text-muted-foreground capitalize">{u.role}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${statusStyle}`}>
+                {u.approvalStatus ?? "pending"}
+              </span>
+              {u.className && (
+                <span className="text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full">
+                  {u.className}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Profile details */}
+          <div className="space-y-2 bg-muted/40 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <span className="text-xs font-bold text-muted-foreground w-14 shrink-0 pt-0.5">EMAIL</span>
+              <span className="text-sm text-foreground break-all">{u.email}</span>
+            </div>
+            {u.phone && (
+              <div className="flex items-start gap-3">
+                <span className="text-xs font-bold text-muted-foreground w-14 shrink-0 pt-0.5">PHONE</span>
+                <span className="text-sm text-foreground">{u.phone}</span>
+              </div>
+            )}
+            {u.dateOfBirth && (
+              <div className="flex items-start gap-3">
+                <span className="text-xs font-bold text-muted-foreground w-14 shrink-0 pt-0.5">DOB</span>
+                <span className="text-sm text-foreground">{u.dateOfBirth}</span>
+              </div>
+            )}
+            <div className="flex items-start gap-3">
+              <span className="text-xs font-bold text-muted-foreground w-14 shrink-0 pt-0.5">ROLE</span>
+              <span className="text-sm text-foreground capitalize">{u.role}</span>
+            </div>
+            {!u.image && (
+              <div className="flex items-start gap-3">
+                <span className="text-xs font-bold text-muted-foreground w-14 shrink-0 pt-0.5">PHOTO</span>
+                <span className="text-xs text-amber-600 dark:text-amber-400">No passport photo uploaded</span>
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            {u.approvalStatus !== "approved" && (
+              <button
+                disabled={busy === u._id}
+                onClick={() => { onApprove(u._id); onClose(); }}
+                className="flex-1 h-9 rounded-xl border border-emerald-400 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 text-sm font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40"
+              >
+                {busy === u._id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Approve
+              </button>
+            )}
+            {u.approvalStatus !== "rejected" && (
+              <button
+                disabled={busy === u._id}
+                onClick={() => { onReject(u._id); onClose(); }}
+                className="flex-1 h-9 rounded-xl border border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 text-sm font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40"
+              >
+                <XCircle className="h-3.5 w-3.5" /> Reject
+              </button>
+            )}
+            <button
+              onClick={() => { onDelete(u._id); onClose(); }}
+              className="h-9 w-9 rounded-xl border border-border text-muted-foreground hover:border-red-400 hover:text-red-500 flex items-center justify-center transition-colors"
+              title="Delete user"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── User Row ─────────────────────────────────────────────────────────────────
+function UserRow({
+  u, onApprove, onReject, onDelete, busy, onPreview,
+}: {
+  u: LmsUser;
+  onApprove: (id: string) => void;
+  onReject:  (id: string) => void;
+  onDelete:  (id: string) => void;
+  onPreview: (u: LmsUser) => void;
+  busy: string | null;
+}) {
+  const initials = u.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
   const statusStyle =
     u.approvalStatus === "approved" ? "text-emerald-700 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400" :
     u.approvalStatus === "rejected"  ? "text-red-600 bg-red-100 dark:bg-red-900/30"    :
     "text-amber-700 bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400";
 
-  const avatarColor =
-    u.role === "teacher" ? "bg-purple-500" :
-    u.role === "student" ? "bg-[#3ecf8e] text-black" :
-    "bg-orange-500";
-
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-background/50 hover:bg-muted/40 transition-colors">
-      <div className={`w-9 h-9 rounded-full ${avatarColor} text-white font-extrabold text-sm flex items-center justify-center shrink-0`}>
-        {initials}
-      </div>
+    <div
+      className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-background/50 hover:bg-muted/40 transition-colors cursor-pointer"
+      onClick={() => onPreview(u)}
+    >
+      {/* Avatar / passport */}
+      {u.image ? (
+        <img src={u.image} alt={u.name} className="w-10 h-10 rounded-full object-cover border-2 border-[#3ecf8e]/40 shrink-0" />
+      ) : (
+        <div className={`w-10 h-10 rounded-full text-white font-extrabold text-sm flex items-center justify-center shrink-0 ${
+          u.role === "teacher" ? "bg-purple-500" : u.role === "student" ? "bg-[#3ecf8e] text-black" : u.role === "mbbs" ? "bg-blue-500" : "bg-orange-500"
+        }`}>
+          {initials}
+        </div>
+      )}
+
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-sm font-semibold text-foreground truncate">{u.name}</p>
@@ -81,14 +206,20 @@ function UserRow({
           </span>
         </div>
         <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-        {u.phone && <p className="text-xs text-muted-foreground">{u.phone}</p>}
-        {u.className && (
-          <span className="text-[10px] bg-navy/10 text-navy dark:bg-white/10 dark:text-white/70 font-semibold px-1.5 py-0.5 rounded-full mt-0.5 inline-block">
-            {u.className}
-          </span>
-        )}
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+          {u.phone && <span className="text-[10px] text-muted-foreground">{u.phone}</span>}
+          {u.className && (
+            <span className="text-[10px] bg-navy/10 text-navy dark:bg-white/10 dark:text-white/70 font-semibold px-1.5 py-0.5 rounded-full">
+              {u.className}
+            </span>
+          )}
+          {!u.image && (
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">⚠ No photo</span>
+          )}
+        </div>
       </div>
-      <div className="flex gap-1.5 shrink-0">
+
+      <div className="flex gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
         {u.approvalStatus !== "approved" && (
           <button disabled={busy === u._id} onClick={() => onApprove(u._id)}
             className="w-8 h-8 rounded-lg border border-emerald-400 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 flex items-center justify-center transition-colors disabled:opacity-40"
@@ -127,26 +258,28 @@ export default function AdminDashboard() {
   const [allTeachers,     setAllTeachers]     = useState<LmsUser[]>([]);
   const [allParents,      setAllParents]      = useState<LmsUser[]>([]);
   const [allExams,        setAllExams]        = useState<OfficialExam[]>([]);
-  const [allAttempts,     setAllAttempts]     = useState<any[]>([]);
   const [loading,         setLoading]         = useState(true);
   const [busyDoc,  setBusyDoc]  = useState<string | null>(null);
   const [busyUser,   setBusyUser]   = useState<string | null>(null);
   const [busyExam,   setBusyExam]   = useState<string | null>(null);
-  const [previewDoc, setPreviewDoc] = useState<LmsDocument | null>(null);
+  const [previewDoc,  setPreviewDoc]  = useState<LmsDocument | null>(null);
+  const [previewUser, setPreviewUser] = useState<LmsUser | null>(null);
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
   const [docTab, setDocTab] = useState<"pending" | "approved">("pending");
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const [docsRes, approvedRes, studentsRes, teachersRes, parentsRes, examRes, attemptsRes] = await Promise.all([
+      const [docsRes, approvedRes, studentsRes, teachersRes, parentsRes, examRes] = await Promise.all([
         lmsDocs.listPending().catch(() => ({ documents: [] })),
         lmsDocs.list().catch(() => ({ documents: [] })),
-        lmsUsers.list({ role: "student" }).catch(err => { toast.error("Failed to load students: " + (err?.message ?? "unknown error")); return { users: [] }; }),
+        Promise.all([
+          lmsUsers.list({ role: "student" }).catch(() => ({ users: [] })),
+          lmsUsers.list({ role: "mbbs"    }).catch(() => ({ users: [] })),
+        ]).then(([s, m]) => ({ users: [...(s.users ?? []), ...(m.users ?? [])] })),
         lmsUsers.list({ role: "teacher" }).catch(err => { toast.error("Failed to load teachers: " + (err?.message ?? "unknown error")); return { users: [] }; }),
         lmsUsers.list({ role: "parent"  }).catch(err => { toast.error("Failed to load parents: "  + (err?.message ?? "unknown error")); return { users: [] }; }),
         officialExams.list().catch(() => ({ exams: [] })),
-        officialExams.getAllAttempts().catch(() => ({ attempts: [] })),
       ]);
       setPendingDocs(docsRes.documents ?? []);
       setApprovedDocs((approvedRes.documents ?? []).filter((d: LmsDocument) => d.approvalStatus === "approved"));
@@ -157,7 +290,6 @@ export default function AdminDashboard() {
       setAllTeachers(tea);
       setAllParents(par);
       setAllExams(examRes.exams ?? []);
-      setAllAttempts(attemptsRes.attempts ?? []);
       setPendingStudents(stu.filter(s => s.approvalStatus === "pending"));
       setPendingTeachers(tea.filter(t => t.approvalStatus === "pending"));
       setPendingParents(par.filter(p => p.approvalStatus === "pending"));
@@ -677,115 +809,17 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Exam Attempts ────────────────────────────────────────────────── */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        <div className="h-1 bg-gradient-to-r from-amber-500 to-orange-500" />
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
-              <Trophy className="h-4 w-4 text-white" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-foreground">Exam Attempts</h3>
-              <p className="text-xs text-muted-foreground">All submitted attempts with scores and candidates</p>
-            </div>
-            <span className="ml-auto text-xs text-muted-foreground">{allAttempts.length} attempt{allAttempts.length !== 1 ? "s" : ""}</span>
-          </div>
-
-          {loading ? (
-            <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-amber-500" /></div>
-          ) : allAttempts.length === 0 ? (
-            <div className="text-center py-10 border border-dashed border-border rounded-xl bg-muted/20">
-              <Trophy className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
-              <p className="text-sm font-semibold text-muted-foreground">No attempts yet.</p>
-              <p className="text-xs text-muted-foreground mt-1">Attempts will appear here once students submit exams.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Candidate</th>
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Exam</th>
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Class</th>
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Score</th>
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">%</th>
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Result</th>
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2 pr-4">Date</th>
-                    <th className="text-left text-xs font-bold text-muted-foreground pb-2">Time Taken</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {allAttempts.map(attempt => {
-                    const passed = attempt.passed;
-                    const date = attempt.submittedAt ? new Date(attempt.submittedAt) : null;
-                    const dateStr = date
-                      ? date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                      : "—";
-                    const timeStr = date
-                      ? date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
-                      : "";
-                    const mins = Math.floor((attempt.timeTaken ?? 0) / 60);
-                    const secs = (attempt.timeTaken ?? 0) % 60;
-                    const taken = attempt.timeTaken ? `${mins}m ${secs}s` : "—";
-                    return (
-                      <tr key={attempt._id} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 pr-4">
-                          <div>
-                            <p className="font-semibold text-foreground text-sm leading-tight">{attempt.studentName}</p>
-                            <p className="text-xs text-muted-foreground">{attempt.studentEmail}</p>
-                          </div>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <div>
-                            <p className="font-medium text-foreground text-xs leading-tight max-w-[160px] truncate">{attempt.examTitle}</p>
-                            <p className="text-[10px] text-muted-foreground">{attempt.examSubject}</p>
-                          </div>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-medium">
-                            {attempt.studentClass || attempt.examClass || "—"}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <span className="font-bold text-foreground">
-                            {attempt.totalScore}
-                            <span className="text-muted-foreground font-normal">/{attempt.totalMarks}</span>
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <span className={`font-extrabold text-sm ${passed ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-                            {attempt.percentage}%
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-fit ${
-                            passed
-                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                              : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${passed ? "bg-emerald-500" : "bg-red-500"}`} />
-                            {passed ? "Passed" : "Failed"}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4">
-                          <div>
-                            <p className="text-xs text-foreground font-medium">{dateStr}</p>
-                            <p className="text-[10px] text-muted-foreground">{timeStr}</p>
-                          </div>
-                        </td>
-                        <td className="py-3">
-                          <span className="text-xs text-muted-foreground font-medium">{taken}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* ── User Profile Preview Modal ──────────────────────────────────── */}
+      {previewUser && (
+        <ProfileModal
+          u={previewUser}
+          onClose={() => setPreviewUser(null)}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          onDelete={handleDelete}
+          busy={busy}
+        />
+      )}
 
       {/* ── Document Preview Modal ───────────────────────────────────────── */}
       {previewDoc && (

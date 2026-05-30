@@ -48,10 +48,10 @@ export interface LmsUser {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const lmsAuth = {
-  register: (name: string, email: string, password: string, role?: string, className?: string) =>
+  register: (name: string, email: string, password: string, role?: string, className?: string, phone?: string, image?: string) =>
     fetch(`${BASE}/api/auth/register`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, password, role, className }),
+      body: JSON.stringify({ name, email, password, role, className, phone, image }),
     }).then(handle<{ success: boolean; token: string; user: LmsUser }>),
 
   login: (email: string, password: string) =>

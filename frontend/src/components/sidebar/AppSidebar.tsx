@@ -2,7 +2,8 @@
 import {
   Settings2, School, GraduationCap, Users, LayoutDashboard,
   Banknote, LogOut, BookMarked, FileText, Trophy, ClipboardList,
-  BookOpen, Calendar, Menu, type LucideIcon,
+  BookOpen, Calendar, Menu, Stethoscope, FlaskConical, Brain,
+  type LucideIcon,
 } from "lucide-react";
 import { NavMain }      from "@/components/sidebar/nav-main";
 import { NavUser }      from "@/components/sidebar/nav-user";
@@ -208,12 +209,64 @@ const candidateNav: NavItem[] = [
   },
 ];
 
+// ─── MBBS Nav ────────────────────────────────────────────────────────────────
+const MBBS_COURSES = [
+  "Anatomy", "Embryology", "Histology", "Biochemistry", "Physiology",
+  "Histopathology", "Microbiology", "Hematology", "Immunology",
+  "Chemical Pathology", "Pediatrics", "Gynaecology", "Medicine", "Surgery",
+];
+
+const mbbsNav: NavItem[] = [
+  {
+    title: "Dashboard", url: "/dashboard", icon: LayoutDashboard,
+    items: [{ title: "MBBS Dashboard", url: "/dashboard" }],
+  },
+  {
+    title: "Courses", url: "#", icon: Brain,
+    items: MBBS_COURSES.map(c => ({
+      title: c,
+      url: `/lms/study?subject=${encodeURIComponent(c)}`,
+    })),
+  },
+  {
+    title: "Study Materials", url: "/lms/study", icon: BookMarked,
+    items: [
+      { title: "All Notes",    url: "/lms/study"             },
+      { title: "Upload Note",  url: "/lms/study?upload=true" },
+    ],
+  },
+  {
+    title: "Exams", url: "/lms/exams", icon: FileText,
+    items: [{ title: "My Exams", url: "/lms/exams" }],
+  },
+  {
+    title: "Exam Results", url: "/lms/results", icon: Trophy,
+    items: [{ title: "View Results", url: "/lms/results" }],
+  },
+  {
+    title: "Test Tools", url: "#", icon: ClipboardList,
+    items: [
+      { title: "Flashcards", url: "/lms/flashcards" },
+      { title: "Quiz Panel", url: "/lms/quiz"       },
+    ],
+  },
+  {
+    title: "Clinical Hub", url: "#", icon: Stethoscope,
+    items: [
+      { title: "Case Studies",   url: "/lms/study?subject=Clinical+Cases" },
+      { title: "Drug Reference", url: "/lms/study?subject=Pharmacology"   },
+      { title: "Lab Values",     url: "/lms/study?subject=Lab+Reference"  },
+    ],
+  },
+];
+
 function getNavByRole(role: string): NavItem[] {
   switch (role) {
     case "teacher":   return teacherNav;
     case "admin":     return adminNav;
     case "parent":    return parentNav;
     case "candidate": return candidateNav;
+    case "mbbs":      return mbbsNav;
     default:          return studentNav;
   }
 }
@@ -224,6 +277,7 @@ const ROLE_LABEL: Record<string, string> = {
   admin:     "Admin Portal",
   parent:    "Parent Portal",
   candidate: "Exam Portal",
+  mbbs:      "MBBS Portal",
 };
 
 // ─── Mobile top bar (shown only on mobile) ────────────────────────────────────
