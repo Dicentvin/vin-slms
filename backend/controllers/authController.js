@@ -142,7 +142,7 @@ export const sendVerification = async (req, res) => {
     return res.json({ success: true, message: "Verification email sent — check your inbox." });
   } catch (err) {
     console.error("sendVerification error:", err);
-    return res.status(500).json({ success: false, message: "Failed to send verification email. Check your email settings." });
+    return res.status(500).json({ success: false, message: "Could not send the verification email right now. Please try again in a minute." });
   }
 };
 
@@ -207,7 +207,7 @@ export const forgotPassword = async (req, res) => {
     return res.json({ success: true, message: successMsg });
   } catch (err) {
     console.error("forgotPassword error:", err);
-    return res.status(500).json({ success: false, message: "Failed to send reset email. Please check your email settings and try again." });
+    return res.status(500).json({ success: false, message: "Could not send the reset email right now. Please try again in a minute." });
   }
 };
 
