@@ -20,8 +20,10 @@ const ALLOWED_MIME = new Set([
   "application/pdf",
   "application/vnd.ms-powerpoint",
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
-const ALLOWED_EXT = new Set([".pdf", ".ppt", ".pptx"]);
+const ALLOWED_EXT = new Set([".pdf", ".ppt", ".pptx", ".doc", ".docx"]);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, os.tmpdir()),
@@ -34,16 +36,16 @@ const storage = multer.diskStorage({
 const fileFilter = (_req, file, cb) => {
   const ext = path.extname(file.originalname).toLowerCase();
   if (ALLOWED_MIME.has(file.mimetype) || ALLOWED_EXT.has(ext)) cb(null, true);
-  else cb(new Error(`Only PDF, PPT, PPTX allowed. Got: ${ext || file.mimetype}`));
+  else cb(new Error(`Only PDF, PPT, PPTX, DOC, DOCX allowed. Got: ${ext || file.mimetype}`));
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 25*1024*1024 } });
+const upload = multer({ storage, fileFilter, limits: { fileSize: 10*1024*1024 } });
 
 const handleUpload = (req, res, next) => {
   upload.single("file")(req, res, (err) => {
     if (!err) return next();
     const msg = err.code === "LIMIT_FILE_SIZE"
-      ? "File too large (max 25 MB)"
+      ? "File too large (max 10 MB)"
       : err.message || "Upload error";
     return res.status(400).json({ success: false, message: msg });
   });
