@@ -1,45 +1,81 @@
 /**
- * sendEmail.js — Nodemailer wrapper
+ * sendEmail.js — works on Render's FREE tier
  *
- * Add these to your Render environment variables:
- *   EMAIL_HOST     smtp.gmail.com
- *   EMAIL_PORT     587
- *   EMAIL_USER     your@gmail.com
- *   EMAIL_PASS     your-gmail-app-password  (NOT your normal password)
- *   EMAIL_FROM     "Chukwudi Academy <your@gmail.com>"
+ * Render's free web services BLOCK outbound SMTP (ports 25 / 465 / 587), so Gmail/SMTP
+ * can never work there. This file sends over HTTPS (port 443) instead, which is allowed.
  *
- * For Gmail: Google Account → Security → 2-Step Verification → App Passwords
- * Create an app password and paste it as EMAIL_PASS.
+ * Pick ONE provider (checked in this order):
+ *
+ *  1) BREVO (recommended — free 300 emails/day, can email ANY address, no domain needed)
+ *       BREVO_API_KEY      xkeysib-...           (Brevo → SMTP & API → API Keys)
+ *       EMAIL_FROM_EMAIL   you@gmail.com         (must be a verified Sender in Brevo)
+ *       EMAIL_FROM_NAME    Chukwudi Academy      (optional)
+ *
+ *  2) RESEND (free 100/day, but without a verified domain it can only email YOUR OWN address)
+ *       RESEND_API_KEY     re_...
+ *       EMAIL_FROM         "Chukwudi Academy <onboarding@resend.dev>"
+ *
+ *  3) SMTP (local development only — will NOT work on Render free)
+ *       EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM
+ *
+ *  If nothing is set, the email (with its link) is printed to the server log.
  */
 
 import nodemailer from "nodemailer";
 
-// ── Detect configuration ──────────────────────────────────────────────────────
-const isConfigured = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+const FROM_NAME  = process.env.EMAIL_FROM_NAME || "Chukwudi Academy";
+const HTTP_TIMEOUT_MS = 15000;
 
-if (!isConfigured) {
+const provider =
+  process.env.BREVO_API_KEY  ? "brevo"  :
+  process.env.RESEND_API_KEY ? "resend" :
+  (process.env.EMAIL_USER && process.env.EMAIL_PASS) ? "smtp" :
+  "console";
+
+console.log(`📧  Email provider: ${provider}`);
+if (provider === "console") {
   console.warn(
-    "⚠️  EMAIL_USER / EMAIL_PASS not set. " +
-    "Password reset and verification emails will be logged to console instead of sent. " +
-    "Add EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM to your .env"
+    "⚠️  No email provider configured — emails will only be printed in the log. " +
+    "Set BREVO_API_KEY + EMAIL_FROM_EMAIL on Render."
   );
 }
 
-// ── Transporter (only created if configured) ──────────────────────────────────
+// SMTP transporter only for local dev
 let transporter = null;
-if (isConfigured) {
+if (provider === "smtp") {
   transporter = nodemailer.createTransport({
     host:   process.env.EMAIL_HOST || "smtp.gmail.com",
     port:   Number(process.env.EMAIL_PORT) || 587,
     secure: Number(process.env.EMAIL_PORT) === 465,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false, // allow self-signed certs in dev
-    },
+    auth:   { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    connectionTimeout: 10000,
+    greetingTimeout:   10000,
+    socketTimeout:     15000,
   });
+}
+
+async function postJson(url, headers, body) {
+  const ctrl  = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), HTTP_TIMEOUT_MS);
+  try {
+    const res  = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", ...headers },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+    const text = await res.text();
+    let data; try { data = JSON.parse(text); } catch { data = { raw: text }; }
+    if (!res.ok) {
+      throw new Error(`${res.status} ${data?.message || data?.error || data?.raw || res.statusText}`);
+    }
+    return data;
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("Email provider timed out");
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ── Email templates ───────────────────────────────────────────────────────────
@@ -133,23 +169,50 @@ export const emailTemplates = {
   }),
 };
 
-// ── sendEmail — sends real email or logs to console in dev ────────────────────
+// ── sendEmail ─────────────────────────────────────────────────────────────────
 export async function sendEmail({ to, subject, html }) {
-  if (!isConfigured) {
-    // Dev fallback: print email details to backend console
-    console.log("\n" + "═".repeat(60));
-    console.log("📧  DEV EMAIL (not sent — configure EMAIL_* env vars)");
-    console.log(`To:      ${to}`);
-    console.log(`Subject: ${subject}`);
-    // Extract the reset/verify URL from the html for easy copy-paste in dev
-    const urlMatch = html.match(/href="(https?:\/\/[^"]+)"/);
-    if (urlMatch) console.log(`Link:    ${urlMatch[1]}`);
-    console.log("═".repeat(60) + "\n");
-    return { messageId: "dev-console" };
+  if (provider === "brevo") {
+    const fromEmail = process.env.EMAIL_FROM_EMAIL || process.env.EMAIL_USER;
+    if (!fromEmail) throw new Error("EMAIL_FROM_EMAIL is not set (must be a verified Brevo sender)");
+    const data = await postJson(
+      "https://api.brevo.com/v3/smtp/email",
+      { "api-key": process.env.BREVO_API_KEY },
+      {
+        sender:      { name: FROM_NAME, email: fromEmail },
+        to:          [{ email: to }],
+        subject,
+        htmlContent: html,
+      }
+    );
+    console.log(`📧  Email sent via Brevo to ${to} — ${data.messageId}`);
+    return data;
   }
 
-  const from = process.env.EMAIL_FROM || `"Chukwudi Academy" <${process.env.EMAIL_USER}>`;
-  const info = await transporter.sendMail({ from, to, subject, html });
-  console.log(`📧  Email sent to ${to} — ${info.messageId}`);
-  return info;
+  if (provider === "resend") {
+    const from = process.env.EMAIL_FROM || `${FROM_NAME} <onboarding@resend.dev>`;
+    const data = await postJson(
+      "https://api.resend.com/emails",
+      { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+      { from, to: [to], subject, html }
+    );
+    console.log(`📧  Email sent via Resend to ${to} — ${data.id}`);
+    return data;
+  }
+
+  if (provider === "smtp") {
+    const from = process.env.EMAIL_FROM || `"${FROM_NAME}" <${process.env.EMAIL_USER}>`;
+    const info = await transporter.sendMail({ from, to, subject, html });
+    console.log(`📧  Email sent via SMTP to ${to} — ${info.messageId}`);
+    return info;
+  }
+
+  // console fallback
+  console.log("\n" + "═".repeat(60));
+  console.log("📧  EMAIL (not sent — no provider configured)");
+  console.log(`To:      ${to}`);
+  console.log(`Subject: ${subject}`);
+  const urlMatch = html.match(/href="(https?:\/\/[^"]+)"/);
+  if (urlMatch) console.log(`Link:    ${urlMatch[1]}`);
+  console.log("═".repeat(60) + "\n");
+  return { messageId: "console" };
 }
