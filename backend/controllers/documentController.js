@@ -10,15 +10,23 @@ import { extractTextFromFile } from "../utils/fileParser.js";
 import { splitTextIntoChunks } from "../utils/chunker.js";
 
 // ── Upload to Cloudinary then clean up temp file ─────────────────────────────
+const cloudinaryReady = () =>
+  !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+
 async function uploadToCloudinary(localPath, originalName) {
   const ext          = path.extname(originalName).toLowerCase().replace(".", "");
   const resourceType = ext === "pdf" ? "image" : "raw";
-  const result = await cloudinary.uploader.upload(localPath, {
+  const opts = {
     folder:        "lms-documents",
     resource_type: resourceType,
     use_filename:  false,
     tags:          ["lms", ext],
-  });
+  };
+  // "raw" files (ppt/pptx/doc/docx) need the extension in the public_id,
+  // otherwise the URL has no extension and previews/downloads break.
+  if (resourceType === "raw") opts.public_id = `lms-${Date.now()}-${Math.round(Math.random() * 1e9)}.${ext}`;
+
+  const result = await cloudinary.uploader.upload(localPath, opts);
   fs.unlink(localPath, () => {});
   return {
     url:          result.secure_url,
@@ -60,13 +68,21 @@ export const uploadDocument = async (req, res) => {
       return res.status(422).json({ success: false, message: err.message });
     }
 
-    // 2. Upload to Cloudinary
+    // 2. Upload to Cloudinary (if not configured, keep the extracted text so notes/AI still work)
     let cloud;
-    try {
-      cloud = await uploadToCloudinary(localPath, req.file.originalname);
-    } catch (err) {
+    if (!cloudinaryReady()) {
+      console.warn("⚠️  Cloudinary env vars missing — storing extracted text only (no file preview).");
       fs.unlink(localPath, () => {});
-      return res.status(500).json({ success: false, message: "Cloudinary upload failed: " + err.message });
+      cloud = { url: "", publicId: `local-${Date.now()}`, resourceType: "raw", bytes: req.file.size };
+    } else {
+      try {
+        cloud = await uploadToCloudinary(localPath, req.file.originalname);
+      } catch (err) {
+        fs.unlink(localPath, () => {});
+        const detail = err?.message || err?.error?.message || "unknown error";
+        console.error("Cloudinary upload failed:", err);
+        return res.status(500).json({ success: false, message: "File storage failed: " + detail });
+      }
     }
 
     // 3. Chunk text for RAG
