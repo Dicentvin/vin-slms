@@ -13,7 +13,7 @@ const client = new OpenAI({
   baseURL: "https://api.groq.com/openai/v1",
 });
 
-const MODEL = "llama-3.3-70b-versatile"; // Free, fast, excellent quality
+const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
 // ── Helper: parse JSON safely ─────────────────────────────
 function parseJSON(raw) {
@@ -33,10 +33,14 @@ function parseJSON(raw) {
 
 // ── Core generate helper ──────────────────────────────────
 async function generate(systemPrompt, userPrompt, maxTokens = 2048) {
+  // gpt-oss models "think" first, and that thinking counts toward max_tokens,
+  // so give them extra room and keep the thinking short.
+  const reasoning = MODEL.startsWith("openai/gpt-oss");
   const response = await client.chat.completions.create({
-    model:      MODEL,
+    model:       MODEL,
     temperature: 0.2,
-    max_tokens:  maxTokens,
+    max_tokens:  reasoning ? maxTokens + 2000 : maxTokens,
+    ...(reasoning ? { reasoning_effort: "low" } : {}),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user",   content: userPrompt },
