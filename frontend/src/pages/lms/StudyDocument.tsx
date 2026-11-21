@@ -10,6 +10,7 @@ import {
   BookOpen, Zap, Lightbulb, Loader2, ChevronLeft, ChevronRight,
   RotateCcw, Star, CheckCircle2, Send, Trash2, RefreshCw,
   XCircle, CheckCircle, Trophy, Download, ExternalLink, GraduationCap,
+  Maximize2, Minimize2,
 } from "lucide-react";
 import { Button }   from "@/components/ui/button";
 import { Badge }    from "@/components/ui/badge";
@@ -63,7 +64,7 @@ function DocumentViewer({ doc }: { doc: LmsDocument }) {
         )}
         {isPdf ? (
           <iframe
-            src={`${doc.fileUrl}#toolbar=0&navpanes=0&scrollbar=1`}
+            src={`${doc.fileUrl}#view=FitH`}
             className="w-full h-full border-0"
             onLoad={() => setLoading(false)}
             title={doc.title}
@@ -621,6 +622,7 @@ export default function StudyDocument() {
   const [doc, setDoc] = useState<LmsDocument|null>(null);
   const [loading, setLoading] = useState(true);
   const [showViewer, setShowViewer] = useState(false);
+  const [wide, setWide] = useState(false); // true = document takes the full width
 
   useEffect(() => {
     if (!id) return;
@@ -673,9 +675,16 @@ export default function StudyDocument() {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          {showViewer && (
+            <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5 hidden lg:inline-flex"
+              onClick={() => setWide(!wide)}>
+              {wide ? <Minimize2 className="h-3.5 w-3.5"/> : <Maximize2 className="h-3.5 w-3.5"/>}
+              {wide ? "Show AI panel" : "Full width"}
+            </Button>
+          )}
           <Button size="sm" variant="outline"
             className={`h-8 text-xs ${showViewer?"bg-primary text-primary-foreground hover:bg-primary/90":""}`}
-            onClick={() => setShowViewer(!showViewer)}>
+            onClick={() => { setShowViewer(!showViewer); setWide(false); }}>
             <span className="hidden sm:inline">{showViewer ? "Hide Document" : "Read Document"}</span>
             <span className="sm:hidden">{showViewer ? "Hide" : "View Doc"}</span>
           </Button>
@@ -684,16 +693,16 @@ export default function StudyDocument() {
       </div>
 
       {/* Main content */}
-      <div className={`flex-1 flex gap-0 overflow-hidden ${showViewer ? "flex-col lg:flex-row" : "flex-col"}`}>
+      <div className={`flex-1 flex gap-0 overflow-hidden ${showViewer ? "flex-col lg:flex-row lg:h-[calc(100vh-4.5rem)]" : "flex-col"}`}>
         {/* Document viewer panel */}
         {showViewer && (
-          <div className="w-full lg:w-[52%] border-b lg:border-b-0 lg:border-r border-border p-4 overflow-hidden" style={{ minHeight: "40vh", height: "auto" }}>
+          <div className={`${wide ? "w-full" : "w-full lg:w-[68%]"} h-[75vh] lg:h-full border-b lg:border-b-0 lg:border-r border-border p-2 overflow-hidden`}>
             <DocumentViewer doc={doc}/>
           </div>
         )}
 
         {/* AI Tools panel */}
-        <div className={`${showViewer ? "w-full lg:w-[48%]" : "w-full"} p-5 overflow-auto`}>
+        <div className={`${showViewer ? (wide ? "hidden" : "w-full lg:w-[32%] lg:h-full") : "w-full"} p-4 overflow-auto`}>
           <Tabs defaultValue="chat">
             <TabsList className="w-full h-10 mb-5 bg-muted/60 overflow-x-auto flex-nowrap">
               <TabsTrigger value="chat"       className="flex-1 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1">
