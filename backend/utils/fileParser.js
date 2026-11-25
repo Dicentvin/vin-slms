@@ -70,6 +70,36 @@ export async function extractTextFromFile(filePath) {
 }
 
 // ── PDF ───────────────────────────────────────────────────────────────────────
+// Read the PDF's bookmarks (table of contents) → [{ title, page (1-based), depth }]
+async function readOutline(doc) {
+  try {
+    const tree = await doc.getOutline();
+    if (!tree?.length) return [];
+    const out = [];
+    const walk = async (nodes, depth) => {
+      for (const n of nodes) {
+        try {
+          let dest = n.dest;
+          if (typeof dest === "string") dest = await doc.getDestination(dest);
+          if (Array.isArray(dest) && dest[0] != null) {
+            const idx = typeof dest[0] === "object"
+              ? await doc.getPageIndex(dest[0])
+              : Number(dest[0]);
+            if (Number.isInteger(idx) && idx >= 0) {
+              out.push({ title: String(n.title || "").trim(), page: idx + 1, depth });
+            }
+          }
+        } catch { /* skip a bookmark we cannot resolve */ }
+        if (depth < 2 && n.items?.length) await walk(n.items, depth + 1);
+      }
+    };
+    await walk(tree, 0);
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 async function parsePdfWithPdfjs(buffer) {
   const doc = await pdfjs.getDocument({
     data: new Uint8Array(buffer),
@@ -79,14 +109,18 @@ async function parsePdfWithPdfjs(buffer) {
   }).promise;
 
   let text = "";
+  const pages = [];                       // text of each page, kept for chapter detection
   try {
     for (let i = 1; i <= doc.numPages; i++) {
       const page    = await doc.getPage(i);
       const content = await page.getTextContent();
-      text += content.items.map(it => it.str + (it.hasEOL ? "\n" : " ")).join("") + "\n";
+      const pageTxt = content.items.map(it => it.str + (it.hasEOL ? "\n" : " ")).join("");
+      pages.push(pageTxt);
+      text += pageTxt + "\n";
       page.cleanup();
     }
-    return { text, numPages: doc.numPages };
+    const outline = await readOutline(doc);
+    return { text, numPages: doc.numPages, pages, outline };
   } finally {
     doc.destroy();
   }
@@ -115,7 +149,13 @@ async function parsePdf(filePath) {
   const text = result.text.replace(/\s+/g, " ").trim();
   if (!text) throw new Error("This PDF has no readable text (may be image-only/scanned).");
 
-  return { text: text.slice(0, MAX_CHARS), numPages: result.numPages, fileType: "pdf" };
+  return {
+    text: text.slice(0, MAX_CHARS),
+    numPages: result.numPages,
+    fileType: "pdf",
+    pages:   result.pages,     // undefined when the fallback reader was used
+    outline: result.outline,
+  };
 }
 
 // ── DOCX / DOC ────────────────────────────────────────────────────────────────
