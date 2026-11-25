@@ -3,11 +3,13 @@ import path from "path";
 import mongoose from "mongoose";
 import cloudinary   from "../config/cloudinary.js";
 import Document     from "../models/Document.js";
+import DocumentChapter from "../models/DocumentChapter.js";
 import FlashCard    from "../models/FlashCard.js";
 import Quiz         from "../models/Quiz.js";
 import ChatHistory  from "../models/ChatHistory.js";
 import { extractTextFromFile } from "../utils/fileParser.js";
 import { splitTextIntoChunks } from "../utils/chunker.js";
+import { buildChapters } from "../utils/chapters.js";
 
 // ── Upload to Cloudinary then clean up temp file ─────────────────────────────
 const cloudinaryReady = () =>
@@ -88,6 +90,14 @@ export const uploadDocument = async (req, res) => {
     // 3. Chunk text for RAG
     const chunks = splitTextIntoChunks(extracted.text, 1200, 100);
 
+    // 3b. Detect chapters (PDF bookmarks → "Chapter N" headings → page blocks)
+    let built = { source: "none", chapters: [] };
+    try {
+      built = buildChapters(extracted);
+    } catch (e) {
+      console.warn("Chapter detection failed (non-fatal):", e.message);
+    }
+
     // Only admin uploads are auto-approved and published immediately.
     // Teachers must have their materials approved by admin before they go live.
     const isAdmin = uploaderRole === "admin";
@@ -111,6 +121,8 @@ export const uploadDocument = async (req, res) => {
       pages:        extracted.numPages,
       extractedText: extracted.text.slice(0, 100_000),
       chunks,
+      chapterSource: built.source,
+      chapters: built.chapters.map(({ text, ...meta }) => ({ ...meta, chars: text.length })),
       status:       "ready",
       className:    className || "",
       term:         term || "",
@@ -120,6 +132,20 @@ export const uploadDocument = async (req, res) => {
       approvedBy:   isAdmin ? req.user._id : null,
       approvedAt:   isAdmin ? new Date() : null,
     });
+
+    // Save each chapter's text. If this fails the upload still works — chapter quizzes just stay off.
+    if (built.chapters.length) {
+      try {
+        await DocumentChapter.insertMany(
+          built.chapters.map((c) => ({ documentId: doc._id, ...c }))
+        );
+      } catch (e) {
+        console.error("Saving chapters failed (non-fatal):", e.message);
+        doc.chapters = [];
+        doc.chapterSource = "none";
+        await doc.save().catch(() => {});
+      }
+    }
 
     return res.status(201).json({
       success: true,
@@ -133,6 +159,7 @@ export const uploadDocument = async (req, res) => {
         fileType:       doc.fileType,
         pages:          doc.pages,
         fileUrl:        doc.fileUrl,
+        chapterCount:   doc.chapters?.length ?? 0,
         totalChunks:    doc.chunks.length,
         className:      doc.className,
         term:           doc.term,
@@ -280,6 +307,7 @@ export const deleteDocument = async (req, res) => {
       FlashCard.deleteMany({ documentId: doc._id }),
       Quiz.deleteMany({ documentId: doc._id }),
       ChatHistory.deleteMany({ documentId: doc._id }),
+      DocumentChapter.deleteMany({ documentId: doc._id }),
     ]);
 
     await doc.deleteOne();
