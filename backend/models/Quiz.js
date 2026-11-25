@@ -25,6 +25,8 @@ const quizSchema = new mongoose.Schema(
     title: { type: String, required: true },
     questions: [questionSchema],
     totalQuestions: { type: Number, default: 0 },
+    chapters:       [Number],   // chapter indexes this quiz was made from (empty = whole document)
+    chapterLabels:  [String],   // their titles, for display
   },
   { timestamps: true }
 );
