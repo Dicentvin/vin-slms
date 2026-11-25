@@ -1,12 +1,11 @@
 /**
- * ai.js — Uses Groq API (FREE, fast, Llama 3.3 70B)
- * Get your free key at: https://console.groq.com
- * No credit card required.
- *
- * Drop-in replacement — same exports as before so nothing else changes.
+ * ai.js — Uses the Groq API (OpenAI-compatible).
+ * Get a key at: https://console.groq.com  → set GROQ_API_KEY on Render.
+ * Model can be changed without code: set GROQ_MODEL on Render.
  */
 
 import OpenAI from "openai"; // Groq is OpenAI-compatible, same SDK
+import { sampleText, MAX_INPUT_CHARS } from "./chapters.js";
 
 const client = new OpenAI({
   apiKey:  process.env.GROQ_API_KEY,
@@ -33,13 +32,13 @@ function parseJSON(raw) {
 
 // ── Core generate helper ──────────────────────────────────
 async function generate(systemPrompt, userPrompt, maxTokens = 2048) {
-  // gpt-oss models "think" first, and that thinking counts toward max_tokens,
-  // so give them extra room and keep the thinking short.
+  // gpt-oss models "think" before answering and that thinking counts toward
+  // max_tokens, so give them a little extra room and keep the thinking short.
   const reasoning = MODEL.startsWith("openai/gpt-oss");
   const response = await client.chat.completions.create({
     model:       MODEL,
     temperature: 0.2,
-    max_tokens:  reasoning ? maxTokens + 2000 : maxTokens,
+    max_tokens:  reasoning ? maxTokens + 1000 : maxTokens,
     ...(reasoning ? { reasoning_effort: "low" } : {}),
     messages: [
       { role: "system", content: systemPrompt },
@@ -64,7 +63,7 @@ Return ONLY valid JSON in this exact format with no other text:
 [{"question":"...","answer":"..."}]
 
 TEXT:
-"""${text.slice(0, 40000)}"""`;
+"""${sampleText(text, MAX_INPUT_CHARS, { skip: 0.05 })}"""`;
 
   const raw = await generate(system, user, 3000);
   const parsed = parseJSON(raw);
@@ -81,13 +80,20 @@ TEXT:
 // ─────────────────────────────────────────────────────────
 // QUIZ
 // ─────────────────────────────────────────────────────────
-export async function generateQuiz(text, count = 10) {
-  const system = `You are an expert quiz generator for Nigerian Senior Secondary School (SS1, SS2, SS3) students.
-You create WAEC-style multiple choice questions that test deep understanding.
+export async function generateQuiz(text, count = 10, { chapterNames = [] } = {}) {
+  const system = `You are an expert quiz generator for students.
+You write clear multiple-choice questions that test real understanding of the text, at the level and in the style of the text itself (for example exam-style questions for school content, or clinical/exam-style questions for medical content).
 IMPORTANT: Respond with ONLY a valid JSON array. No markdown, no explanation, no extra text whatsoever.`;
 
+  // Chapter quizzes arrive already sampled (and labelled with ### headings).
+  const body  = chapterNames.length ? text : sampleText(text, MAX_INPUT_CHARS, { skip: 0.05 });
+  const multi = chapterNames.length > 1
+    ? `The text comes from ${chapterNames.length} chapters, each starting with a "###" heading. Spread the questions evenly across all the chapters.\n`
+    : "";
+
   const user = `Create exactly ${count} multiple-choice questions from the text below.
-Each question must have exactly 4 options labelled A, B, C, D.
+${multi}Each question must have exactly 4 options labelled A, B, C, D.
+Only ask about facts and ideas that are actually in the text.
 
 Return ONLY valid JSON in this exact format with no other text:
 [{
@@ -98,20 +104,32 @@ Return ONLY valid JSON in this exact format with no other text:
 }]
 
 TEXT:
-"""${text.slice(0, 40000)}"""`;
+"""${body}"""`;
 
   const raw = await generate(system, user, 3500);
   const parsed = parseJSON(raw);
   if (!Array.isArray(parsed)) return [];
 
   return parsed
-    .filter((q) => q.question && Array.isArray(q.options) && q.correctAnswer)
-    .map((q) => ({
-      questionText:  String(q.question).trim(),
-      options:       q.options.map(String),
-      correctAnswer: String(q.correctAnswer).trim(),
-      explanation:   String(q.explanation || "").trim(),
-    }));
+    .filter((q) => q.question && Array.isArray(q.options) && q.options.length >= 2 && q.correctAnswer)
+    .map((q) => {
+      const options = q.options.map((o) => String(o).trim());
+      let correct = String(q.correctAnswer).trim();
+      // The app compares the chosen option with correctAnswer as exact text, so make
+      // sure they match even if the model answered with just a letter ("B" / "B.").
+      if (!options.includes(correct)) {
+        const letter = correct.match(/^([A-D])\b/i)?.[1]?.toUpperCase();
+        const hit = letter && options.find((o) => o.toUpperCase().startsWith(letter + "."));
+        if (hit) correct = hit;
+      }
+      return {
+        questionText:  String(q.question).trim(),
+        options,
+        correctAnswer: correct,
+        explanation:   String(q.explanation || "").trim(),
+      };
+    })
+    .filter((q) => q.options.includes(q.correctAnswer));
 }
 
 // ─────────────────────────────────────────────────────────
@@ -136,7 +154,7 @@ You write clear, well-structured summaries using simple language appropriate for
 (1 sentence wrap-up)
 
 TEXT:
-"""${text.slice(0, 40000)}"""`;
+"""${sampleText(text, MAX_INPUT_CHARS, { skip: 0.05 })}"""`;
 
   return generate(system, user, 1200);
 }
@@ -144,50 +162,45 @@ TEXT:
 // ─────────────────────────────────────────────────────────
 // CHAT (RAG-style)
 // ─────────────────────────────────────────────────────────
-export async function chatWithDocument(chunks, query) {
-  const context = chunks
-    .slice(0, 6)
-    .map((c) => c.content)
+export async function chatWithDocument(passages, query, { outline = null } = {}) {
+  // passages: [{ content, label }] picked by utils/retrieval.js (label = chapter + pages)
+  const context = passages
+    .map((p) => (p.label ? `[${p.label}]\n${p.content}` : p.content))
     .join("\n\n");
 
-  const system = `You are a friendly and encouraging AI tutor for Nigerian Senior Secondary School students (SS1, SS2, SS3).
-You help students understand their study materials clearly and simply.
-Answer questions based ONLY on the provided document context.
+  const system = `You are a friendly and encouraging AI tutor.
+You help students understand their study materials clearly.
+Answer questions based ONLY on the provided document context. The passages come from different parts of the document and are labelled with their chapter and pages; mention the chapter when it helps the student find the topic.
 If the answer is not in the context, say "I couldn't find that in the document, but I can explain the general concept if you'd like."
 Keep answers clear and well-structured. Use examples where helpful.`;
 
-  const user = `DOCUMENT CONTEXT:
-${context}
-
-STUDENT QUESTION:
-${query}`;
+  const user = `${outline ? outline + "\n\n" : ""}DOCUMENT CONTEXT:\n${context}\n\nSTUDENT QUESTION:\n${query}`;
 
   const answer = await generate(system, user, 800);
-  return { answer, usedChunks: chunks.slice(0, 6).length };
+  return { answer, usedChunks: passages.length };
 }
 
 // ─────────────────────────────────────────────────────────
 // EXPLAIN CONCEPT
 // ─────────────────────────────────────────────────────────
-export async function explainConcept(concept, chunks) {
-  const context = chunks
-    .slice(0, 5)
-    .map((c) => c.content)
+export async function explainConcept(concept, passages, { outline = null } = {}) {
+  const context = passages
+    .map((p) => (p.label ? `[${p.label}]\n${p.content}` : p.content))
     .join("\n\n");
 
-  const system = `You are an expert AI tutor for Nigerian Senior Secondary School students.
-You explain concepts clearly using simple language, real-world examples, and analogies that Nigerian students can relate to.`;
+  const system = `You are an expert AI tutor.
+You explain concepts clearly using simple language, real-world examples, and analogies, at the level of the study material.`;
 
   const user = `Explain the concept: "${concept}"
 
-Use the document context below as your primary source. Structure your response as:
+Use the document context below as your primary source (passages are labelled with their chapter). Structure your response as:
 
 1. **Simple Definition** — explain in 1-2 simple sentences
 2. **Full Explanation** — go deeper
 3. **Example** — a real-world example or analogy
 4. **Remember This** — 2-3 key bullet points for exam revision
 
-DOCUMENT CONTEXT:
+${outline ? outline + "\n\n" : ""}DOCUMENT CONTEXT:
 ${context}`;
 
   return generate(system, user, 900);
