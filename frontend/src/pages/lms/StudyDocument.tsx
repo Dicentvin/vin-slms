@@ -10,7 +10,7 @@ import {
   BookOpen, Zap, Lightbulb, Loader2, ChevronLeft, ChevronRight,
   RotateCcw, Star, CheckCircle2, Send, Trash2, RefreshCw,
   XCircle, CheckCircle, Trophy, Download, ExternalLink, GraduationCap,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, Check,
 } from "lucide-react";
 import { Button }   from "@/components/ui/button";
 import { Badge }    from "@/components/ui/badge";
@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   lmsDocs, lmsAI,
-  type LmsDocument, type Flashcard, type QuizQuestion, type ChatMessage,
+  type LmsDocument, type LmsChapter, type Quiz, type Flashcard, type QuizQuestion, type ChatMessage,
 } from "@/services/lmsApi";
 import { useAuth } from "@/hooks/AuthProvider";
 
@@ -65,7 +65,7 @@ function DocumentViewer({ doc }: { doc: LmsDocument }) {
         {isPdf ? (
           <iframe
             src={`${doc.fileUrl}#view=FitH`}
-            className="w-full h-full border-0"
+            className="absolute inset-0 w-full h-full border-0"
             onLoad={() => setLoading(false)}
             title={doc.title}
           />
@@ -73,7 +73,7 @@ function DocumentViewer({ doc }: { doc: LmsDocument }) {
           // For PPT/PPTX use Google Docs viewer
           <iframe
             src={`https://docs.google.com/gview?url=${encodeURIComponent(doc.fileUrl)}&embedded=true`}
-            className="w-full h-full border-0"
+            className="absolute inset-0 w-full h-full border-0"
             onLoad={() => setLoading(false)}
             title={doc.title}
           />
@@ -421,33 +421,65 @@ function FlashcardsTab({ docId }: { docId: string }) {
 }
 
 // ─── Quiz Tab ─────────────────────────────────────────────────────────────────
-function QuizTab({ docId }: { docId: string }) {
-  const [questions, setQuestions]   = useState<QuizQuestion[]>([]);
+const MAX_QUIZ_CHAPTERS = 5; // keep in sync with MAX_QUIZ_CHAPTERS in backend/utils/chapters.js
+
+function QuizTab({ docId, chapters }: { docId: string; chapters: LmsChapter[] }) {
+  const hasChapters = chapters.length > 0;
+
+  const [quizzes, setQuizzes]       = useState<Quiz[]>([]);
+  const [active, setActive]         = useState<Quiz | null>(null);
   const [loading, setLoading]       = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [picking, setPicking]       = useState(false);   // chapter picker open
+  const [selected, setSelected]     = useState<number[]>([]);
+  const [count, setCount]           = useState(10);
   const [current, setCurrent]       = useState(0);
   const [chosen, setChosen]         = useState<number|null>(null);
   const [answers, setAnswers]       = useState<{ correct:boolean }[]>([]);
   const [done, setDone]             = useState(false);
 
+  const questions: QuizQuestion[] = active?.questions ?? [];
+  const showPicker = picking || !active || questions.length === 0;
+
   useEffect(() => {
     lmsAI.getQuizzes(docId)
-      .then(({ quizzes }) => { if (quizzes?.[0]?.questions) setQuestions(quizzes[0].questions); })
+      .then(({ quizzes: list }) => {
+        setQuizzes(list ?? []);
+        if (list?.[0]?.questions?.length) setActive(list[0]);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [docId]);
 
+  const reset = () => { setCurrent(0); setChosen(null); setAnswers([]); setDone(false); };
+
+  // ── Chapter selection ──────────────────────────────────────────────────────
+  const toggle = (index: number) => {
+    if (selected.includes(index)) setSelected(selected.filter(i => i !== index));
+    else if (selected.length >= MAX_QUIZ_CHAPTERS)
+      toast.info(`You can pick up to ${MAX_QUIZ_CHAPTERS} chapters for one quiz`);
+    else setSelected([...selected, index].sort((a, b) => a - b));
+  };
+  const pickFirst3 = () => setSelected(chapters.slice(0, 3).map(c => c.index));
+  const pickNext3  = () => {
+    const start = selected.length ? Math.max(...selected) + 1 : 0;
+    const next  = chapters.filter(c => c.index >= start).slice(0, 3).map(c => c.index);
+    if (next.length) setSelected(next); else toast.info("No more chapters after that");
+  };
+
   const generate = async () => {
+    if (hasChapters && selected.length === 0) { toast.error("Pick at least one chapter"); return; }
     setGenerating(true);
     try {
-      const { quiz } = await lmsAI.generateQuiz(docId, 10);
-      setQuestions(quiz.questions); reset();
+      const { quiz } = await lmsAI.generateQuiz(docId, count, hasChapters ? selected : undefined);
+      setQuizzes(q => [quiz, ...q]);
+      setActive(quiz); reset(); setPicking(false);
       toast.success("Quiz generated!");
     } catch (err: any) { toast.error(err.message ?? "Generation failed"); }
     finally { setGenerating(false); }
   };
 
-  const reset = () => { setCurrent(0); setChosen(null); setAnswers([]); setDone(false); };
+  const openQuiz = (q: Quiz) => { setActive(q); reset(); setPicking(false); };
 
   const next = () => {
     if (chosen === null) return;
@@ -459,6 +491,7 @@ function QuizTab({ docId }: { docId: string }) {
   };
 
   const score = answers.filter(a => a.correct).length;
+  const labels = active?.chapterLabels ?? [];
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-orange"/></div>;
 
@@ -466,99 +499,192 @@ function QuizTab({ docId }: { docId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-bold text-sm uppercase tracking-wide text-muted-foreground">Quiz</h3>
-        <Button size="sm" variant="outline" onClick={generate} disabled={generating}
-          className="h-8 text-xs border-orange/50 text-orange hover:bg-orange/5">
-          {generating
-            ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin"/>Generating…</>
-            : <><RefreshCw className="h-3.5 w-3.5 mr-1.5"/>{questions.length?"New Quiz":"Generate Quiz"}</>}
-        </Button>
+        {showPicker
+          ? (active && questions.length > 0 && (
+              <Button size="sm" variant="ghost" onClick={() => setPicking(false)} className="h-8 text-xs">
+                <ChevronLeft className="h-3.5 w-3.5 mr-1"/>Back to quiz
+              </Button>))
+          : (
+              <Button size="sm" variant="outline" onClick={() => setPicking(true)}
+                className="h-8 text-xs border-orange/50 text-orange hover:bg-orange/5">
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5"/>New Quiz
+              </Button>)}
       </div>
 
-      {questions.length === 0 ? (
-        <div className="flex flex-col items-center py-12 gap-3 text-center">
-          <div className="w-12 h-12 rounded-2xl gradient-navy flex items-center justify-center">
-            <Zap className="h-6 w-6 text-white"/>
-          </div>
-          <p className="font-semibold text-sm">No quiz yet</p>
-          <Button size="sm" onClick={generate} disabled={generating} className="btn-orange">
-            {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : <Zap className="h-4 w-4 mr-2"/>}
-            Generate Quiz
-          </Button>
-        </div>
-      ) : done ? (
-        <Card className="text-center border-2 border-orange/30">
-          <CardContent className="pt-8 pb-8 space-y-4">
-            <div className="w-16 h-16 rounded-full gradient-orange flex items-center justify-center mx-auto">
-              <Trophy className="h-8 w-8 text-white"/>
-            </div>
-            <p className="text-4xl font-black text-orange">
-              {score}<span className="text-2xl text-muted-foreground font-normal">/{questions.length}</span>
-            </p>
-            <p className="text-muted-foreground text-sm font-medium">
-              {score===questions.length?"Perfect! 🎉":score>=questions.length*0.7?"Great job! 👏":"Keep studying! 📚"}
-            </p>
-            <div className="h-2.5 bg-muted rounded-full max-w-[200px] mx-auto overflow-hidden">
-              <div className="h-full bg-orange rounded-full transition-all"
-                style={{ width:`${(score/questions.length)*100}%` }}/>
-            </div>
-            <p className="text-xs text-muted-foreground font-semibold">{Math.round((score/questions.length)*100)}%</p>
-            <div className="flex gap-3 justify-center">
-              <Button variant="outline" size="sm" onClick={reset}>
-                <RotateCcw className="h-4 w-4 mr-2"/>Try Again
-              </Button>
-              <Button size="sm" onClick={generate} disabled={generating} className="btn-orange">
-                <RefreshCw className="h-4 w-4 mr-2"/>New Quiz
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
+      {showPicker ? (
+        // ── Choose what to be quizzed on ──────────────────────────────────────
         <div className="space-y-4">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="font-bold">{current+1}/{questions.length}</span>
-            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-orange rounded-full transition-all"
-                style={{ width:`${((current+1)/questions.length)*100}%` }}/>
-            </div>
-          </div>
-          <div className="bg-card rounded-xl border-2 border-border p-4">
-            <p className="font-bold text-sm leading-snug">{questions[current].questionText}</p>
-          </div>
-          <div className="space-y-2">
-            {questions[current].options.map((opt,i) => {
-              const isChosen  = chosen===i;
-              const isCorrect = opt===questions[current].correctAnswer;
-              const show      = chosen!==null;
-              let cls = "border-border hover:border-orange/60 hover:bg-orange/5";
-              if (show) {
-                if (isCorrect)    cls = "border-green-400 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300";
-                else if (isChosen) cls = "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300";
-                else               cls = "border-border opacity-50";
-              } else if (isChosen) cls = "border-orange bg-orange/5";
+          {hasChapters ? (
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold">Choose the chapters for your quiz</p>
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {selected.length}/{MAX_QUIZ_CHAPTERS} selected
+                </span>
+              </div>
 
-              return (
-                <button key={i} onClick={() => { if(chosen===null) setChosen(i); }}
-                  className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left text-sm font-medium transition-all ${cls} ${chosen!==null?"cursor-default":"cursor-pointer"}`}>
-                  <span className="w-7 h-7 rounded-lg border-2 border-current flex items-center justify-center text-xs font-black shrink-0">
-                    {["A","B","C","D"][i]}
-                  </span>
-                  <span className="flex-1">{opt}</span>
-                  {show && isCorrect  && <CheckCircle className="h-4 w-4 shrink-0 text-green-500"/>}
-                  {show && isChosen && !isCorrect && <XCircle className="h-4 w-4 shrink-0 text-red-500"/>}
-                </button>
-              );
-            })}
-          </div>
-          {chosen!==null && questions[current].explanation && (
-            <div className="p-3.5 rounded-xl bg-primary/5 border-2 border-primary/20">
-              <p className="text-xs font-black text-primary uppercase tracking-wide mb-1">Explanation</p>
-              <p className="text-sm">{questions[current].explanation}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={pickFirst3}>First 3</Button>
+                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={pickNext3}>Next 3</Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelected([])}
+                  disabled={selected.length === 0}>Clear</Button>
+              </div>
+
+              <div className="max-h-72 overflow-auto space-y-1.5 pr-1">
+                {chapters.map(c => {
+                  const on = selected.includes(c.index);
+                  return (
+                    <button key={c.index} onClick={() => toggle(c.index)}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border-2 text-left transition-all ${
+                        on ? "border-orange bg-orange/5" : "border-border hover:border-orange/50"}`}>
+                      <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${
+                        on ? "bg-orange border-orange text-white" : "border-border"}`}>
+                        {on && <Check className="h-3.5 w-3.5"/>}
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-semibold leading-tight truncate">{c.title}</span>
+                        <span className="block text-[11px] text-muted-foreground">
+                          {c.startPage === c.endPage ? `p. ${c.startPage}` : `pp. ${c.startPage}–${c.endPage}`}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center py-6 gap-3 text-center">
+              <div className="w-12 h-12 rounded-2xl gradient-navy flex items-center justify-center">
+                <Zap className="h-6 w-6 text-white"/>
+              </div>
+              <p className="font-semibold text-sm">No quiz yet</p>
+              <p className="text-xs text-muted-foreground max-w-[260px]">
+                Chapter information isn't available for this document, so the quiz will use
+                a sample from the whole document. Re-upload a PDF to quiz by chapter.
+              </p>
             </div>
           )}
-          <Button className="w-full btn-orange" onClick={next} disabled={chosen===null}>
-            {current+1===questions.length ? "See Results" : "Next Question"}
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground">Questions</span>
+            {[5, 10].map(n => (
+              <button key={n} onClick={() => setCount(n)}
+                className={`h-7 px-3 rounded-lg border-2 text-xs font-bold transition-all ${
+                  count === n ? "border-orange bg-orange/10 text-orange" : "border-border text-muted-foreground hover:border-orange/50"}`}>
+                {n}
+              </button>
+            ))}
+          </div>
+
+          <Button className="w-full btn-orange" onClick={generate}
+            disabled={generating || (hasChapters && selected.length === 0)}>
+            {generating
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin"/>Generating…</>
+              : <><Zap className="h-4 w-4 mr-2"/>Generate Quiz{hasChapters && selected.length > 0
+                  ? ` (${selected.length} chapter${selected.length > 1 ? "s" : ""})` : ""}</>}
           </Button>
+
+          {quizzes.length > 0 && (
+            <div className="pt-2 space-y-1.5">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Previous quizzes</p>
+              {quizzes.slice(0, 5).map(q => (
+                <button key={q._id} onClick={() => openQuiz(q)}
+                  className="w-full text-left p-2.5 rounded-xl border-2 border-border hover:border-orange/50 transition-all">
+                  <span className="block text-sm font-semibold leading-tight truncate">
+                    {q.chapterLabels?.length ? q.chapterLabels.join(" · ") : "Whole document"}
+                  </span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {q.totalQuestions} questions{q.createdAt ? ` · ${new Date(q.createdAt).toLocaleDateString()}` : ""}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+      ) : (
+        <>
+          {labels.length > 0 && (
+            <p className="text-xs text-muted-foreground leading-snug">
+              <span className="font-bold">Chapters:</span> {labels.join(" · ")}
+            </p>
+          )}
+
+          {done ? (
+            <Card className="text-center border-2 border-orange/30">
+              <CardContent className="pt-8 pb-8 space-y-4">
+                <div className="w-16 h-16 rounded-full gradient-orange flex items-center justify-center mx-auto">
+                  <Trophy className="h-8 w-8 text-white"/>
+                </div>
+                <p className="text-4xl font-black text-orange">
+                  {score}<span className="text-2xl text-muted-foreground font-normal">/{questions.length}</span>
+                </p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  {score===questions.length?"Perfect! 🎉":score>=questions.length*0.7?"Great job! 👏":"Keep studying! 📚"}
+                </p>
+                <div className="h-2.5 bg-muted rounded-full max-w-[200px] mx-auto overflow-hidden">
+                  <div className="h-full bg-orange rounded-full transition-all"
+                    style={{ width:`${(score/questions.length)*100}%` }}/>
+                </div>
+                <p className="text-xs text-muted-foreground font-semibold">{Math.round((score/questions.length)*100)}%</p>
+                <div className="flex gap-3 justify-center">
+                  <Button variant="outline" size="sm" onClick={reset}>
+                    <RotateCcw className="h-4 w-4 mr-2"/>Try Again
+                  </Button>
+                  <Button size="sm" onClick={() => setPicking(true)} className="btn-orange">
+                    <RefreshCw className="h-4 w-4 mr-2"/>New Quiz
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="font-bold">{current+1}/{questions.length}</span>
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-orange rounded-full transition-all"
+                    style={{ width:`${((current+1)/questions.length)*100}%` }}/>
+                </div>
+              </div>
+              <div className="bg-card rounded-xl border-2 border-border p-4">
+                <p className="font-bold text-sm leading-snug">{questions[current].questionText}</p>
+              </div>
+              <div className="space-y-2">
+                {questions[current].options.map((opt,i) => {
+                  const isChosen  = chosen===i;
+                  const isCorrect = opt===questions[current].correctAnswer;
+                  const show      = chosen!==null;
+                  let cls = "border-border hover:border-orange/60 hover:bg-orange/5";
+                  if (show) {
+                    if (isCorrect)    cls = "border-green-400 bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300";
+                    else if (isChosen) cls = "border-red-400 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300";
+                    else               cls = "border-border opacity-50";
+                  } else if (isChosen) cls = "border-orange bg-orange/5";
+
+                  return (
+                    <button key={i} onClick={() => { if(chosen===null) setChosen(i); }}
+                      className={`w-full flex items-center gap-3 p-3.5 rounded-xl border-2 text-left text-sm font-medium transition-all ${cls} ${chosen!==null?"cursor-default":"cursor-pointer"}`}>
+                      <span className="w-7 h-7 rounded-lg border-2 border-current flex items-center justify-center text-xs font-black shrink-0">
+                        {["A","B","C","D"][i]}
+                      </span>
+                      <span className="flex-1">{opt}</span>
+                      {show && isCorrect  && <CheckCircle className="h-4 w-4 shrink-0 text-green-500"/>}
+                      {show && isChosen && !isCorrect && <XCircle className="h-4 w-4 shrink-0 text-red-500"/>}
+                    </button>
+                  );
+                })}
+              </div>
+              {chosen!==null && questions[current].explanation && (
+                <div className="p-3.5 rounded-xl bg-primary/5 border-2 border-primary/20">
+                  <p className="text-xs font-black text-primary uppercase tracking-wide mb-1">Explanation</p>
+                  <p className="text-sm">{questions[current].explanation}</p>
+                </div>
+              )}
+              <Button className="w-full btn-orange" onClick={next} disabled={chosen===null}>
+                {current+1===questions.length ? "See Results" : "Next Question"}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -693,7 +819,7 @@ export default function StudyDocument() {
       </div>
 
       {/* Main content */}
-      <div className={`flex-1 flex gap-0 overflow-hidden ${showViewer ? "flex-col lg:flex-row lg:h-[calc(100vh-4.5rem)]" : "flex-col"}`}>
+      <div className={`flex-1 flex gap-0 overflow-hidden ${showViewer ? "flex-col lg:flex-row lg:flex-none lg:h-[calc(100vh-4.5rem)]" : "flex-col"}`}>
         {/* Document viewer panel */}
         {showViewer && (
           <div className={`${wide ? "w-full" : "w-full lg:w-[68%]"} h-[75vh] lg:h-full border-b lg:border-b-0 lg:border-r border-border p-2 overflow-hidden`}>
@@ -725,7 +851,7 @@ export default function StudyDocument() {
               <TabsContent value="chat"       className="h-full mt-0"><ChatTab docId={id} docTitle={doc.title}/></TabsContent>
               <TabsContent value="summary"    className="h-full mt-0"><SummaryTab docId={id}/></TabsContent>
               <TabsContent value="flashcards" className="mt-0"><FlashcardsTab docId={id}/></TabsContent>
-              <TabsContent value="quiz"       className="mt-0"><QuizTab docId={id}/></TabsContent>
+              <TabsContent value="quiz"       className="mt-0"><QuizTab docId={id} chapters={doc.chapters ?? []}/></TabsContent>
               <TabsContent value="explain"    className="mt-0"><ExplainTab docId={id}/></TabsContent>
             </div>
           </Tabs>
