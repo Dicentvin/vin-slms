@@ -46,6 +46,21 @@ const documentSchema = new mongoose.Schema(
     approvedAt:      { type: Date, default: null },
     rejectionReason: { type: String, default: "" },
 
+    // Chapter list (metadata only — the text is in the DocumentChapter collection)
+    chapterSource: { type: String, enum: ["none", "outline", "headings", "blocks"], default: "none" },
+    chapters: [
+      new mongoose.Schema(
+        {
+          index:     Number,
+          title:     String,
+          startPage: Number,
+          endPage:   Number,
+          chars:     Number,
+        },
+        { _id: false }
+      ),
+    ],
+
     extractedText: { type: String, default: "" },
     chunks:        [chunkSchema],
     status: {
